@@ -9,6 +9,6 @@ export const CERTIFICATES: Certificate[] = [
     date: "October 2025",
     category: "Hackathon / Innovation",
     description: "Recognized as a Galactic Problem Solver for participation in the NASA International Space Apps Challenge 2025, a global innovation competition focused on solving challenges related to Earth and space.",
-    fileUrl: "https://drive.google.com/file/d/13SotadNpY4KrixBuOrbq5h_i86UUlXdM/view?usp=drive_link"
+    fileUrl: "https://drive.google.com/file/d/1e3zhB1oBxG7CEzGtiKpvXms4_PRwoH5Q/view?usp=drive_link"
   }
 ];
