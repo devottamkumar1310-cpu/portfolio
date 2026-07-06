@@ -52,11 +52,11 @@ export interface Certificate {
   id: string;
   title: string;
   issuer: string;
+  recognition: string;
   date: string;
-  verificationLink?: string;
-  category: "Software Development" | "Data Science & Analytics" | "Professional Development" | string;
-  skills: string[];
-  featured?: boolean;
+  category: string;
+  description: string;
+  fileUrl?: string;
 }
 
 export interface Achievement {
