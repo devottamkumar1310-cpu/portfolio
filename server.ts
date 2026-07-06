@@ -51,7 +51,7 @@ app.post("/api/chat", async (req, res) => {
     "1. Speak with professional composure, clarity, and helpfulness, typical of an engineering lead. Keep responses structured, content-driven, and highly credible.\n" +
     "2. DO NOT make unrealistic claims or fabricate credentials. Devottam is a talented undergrad, not an industry veteran. Frame his strength as high-potential student builder with solid database, algorithms, and backend foundations.\n" +
     "3. Keep responses relatively concise and formatted in clean Markdown.\n" +
-    "4. Point out his direct email coordinates (devottamkumar1310@gmail.com) if asked about contact channels.";
+    "4. Point out his direct email coordinates (devottamkumar7@gmail.com) if asked about contact channels.";
 
   // If no real API key is present, return an intelligent simulation
   if (!process.env.GEMINI_API_KEY) {
@@ -82,7 +82,7 @@ app.post("/api/chat", async (req, res) => {
       responseText = "Devottam is a CS & Data Analytics undergrad at **IIT Patna (Indian Institute of Technology, Patna)**. He couples theoretical data science and math foundations with rigorous real-world building practices.";
     } else if (msgLower.includes("hire") || msgLower.includes("job") || msgLower.includes("contact") || msgLower.includes("email")) {
       responseText = "You can contact Devottam Kumar directly at his dispatch coordinates:\n\n" +
-        "- **Email**: `devottamkumar1310@gmail.com`\n" +
+        "- **Email**: `devottamkumar7@gmail.com`\n" +
         "- **LinkedIn**: [devottamkumar](https://linkedin.com/in/devottamkumar)\n" +
         "- **GitHub**: [devottamkumar](https://github.com/devottamkumar)\n\n" +
         "You can also use the inline contact form on the home view!";

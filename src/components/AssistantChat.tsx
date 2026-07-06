@@ -77,7 +77,7 @@ export default function AssistantChat({ isOpen, onClose }: AssistantChatProps) {
       } else if (lower.includes("education") || lower.includes("college") || lower.includes("iit") || lower.includes("patna")) {
         replyStr = `**[Local Spec Match - Education]**:\n\nDevottam Kumar is currently pursuing his degree in **Computer Science & Data Analytics** at the prestigious **Indian Institute of Technology (IIT), Patna**. He combines algorithmic problem-solving with a highly practical systems development approach.`;
       } else if (lower.includes("hire") || lower.includes("job") || lower.includes("contact") || lower.includes("email")) {
-        replyStr = `Interested in hiring Devottam Kumar for internship or engineering collaboration? Excellent! Devottam is actively looking for high-caliber Summer 2026 roles.\n\n- **Direct Email Coordinates**: devottamkumar1310@gmail.com\n- You can also trigger the *Interactive Handshake Form* on the landing page!`;
+        replyStr = `Interested in hiring Devottam Kumar for internship or engineering collaboration? Excellent! Devottam is actively looking for high-caliber Summer 2026 roles.\n\n- **Direct Email Coordinates**: devottamkumar7@gmail.com\n- You can also trigger the *Interactive Handshake Form* on the landing page!`;
       }
 
       setMessages(prev => [...prev, { role: "model", text: replyStr }]);
