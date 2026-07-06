@@ -23,10 +23,7 @@ export default function CosmicBackground() {
     if (!isClient) return;
     const handleScroll = () => { scrollYRef.current = window.scrollY; };
     const handleMouse = (e: MouseEvent) => {
-      mouseTargetRef.current = {
-        x: e.clientX / window.innerWidth,
-        y: e.clientY / window.innerHeight,
-      };
+      mouseTargetRef.current = { x: e.clientX / window.innerWidth, y: e.clientY / window.innerHeight };
     };
     window.addEventListener("scroll", handleScroll, { passive: true });
     window.addEventListener("mousemove", handleMouse, { passive: true });
@@ -56,271 +53,299 @@ export default function CosmicBackground() {
       canvas.style.height = `${height}px`;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
-
     resizeCanvas();
     window.addEventListener("resize", resizeCanvas);
 
     const isMobile = window.innerWidth < 768;
 
-    // ─── STAR FIELD ────────────────────────────────────────────────────────
+    // ─── PRECOMPUTE GRAIN TEXTURE ─────────────────────────────────────────
+    const grainSize = 256;
+    const grainCanvas = document.createElement("canvas");
+    grainCanvas.width = grainSize;
+    grainCanvas.height = grainSize;
+    const gctx = grainCanvas.getContext("2d")!;
+    const imgData = gctx.createImageData(grainSize, grainSize);
+    for (let i = 0; i < imgData.data.length; i += 4) {
+      const v = Math.floor(Math.random() * 255);
+      imgData.data[i]     = v;
+      imgData.data[i + 1] = v;
+      imgData.data[i + 2] = v;
+      imgData.data[i + 3] = Math.floor(Math.random() * 28 + 4);
+    }
+    gctx.putImageData(imgData, 0, 0);
+    const grainPattern = ctx.createPattern(grainCanvas, "repeat");
+
+    // ─── PRECOMPUTE STAR FIELD ────────────────────────────────────────────
+    const STAR_COUNT = isMobile ? 280 : 480;
     const stars: Star[] = [];
-    const starColors = [
+    const starColorPalette = [
       "rgba(255,255,255,",
-      "rgba(186,230,253,",
-      "rgba(165,180,252,",
-      "rgba(253,230,138,",
+      "rgba(220,238,255,",
+      "rgba(190,215,255,",
+      "rgba(170,205,255,",
+      "rgba(255,252,230,",  // slightly warm (rare)
     ];
 
-    // Far layer — tiny, sparse
-    for (let i = 0; i < (isMobile ? 120 : 220); i++) {
+    for (let i = 0; i < STAR_COUNT; i++) {
+      const roll = Math.random();
+      let size: number, opacity: number;
+      if (roll < 0.65) {
+        // Majority: tiny distant stars
+        size = Math.random() * 0.45 + 0.18;
+        opacity = Math.random() * 0.4 + 0.12;
+      } else if (roll < 0.90) {
+        // Mid: slightly brighter
+        size = Math.random() * 0.65 + 0.45;
+        opacity = Math.random() * 0.5 + 0.25;
+      } else {
+        // Few: prominent with micro-bloom
+        size = Math.random() * 0.9 + 0.9;
+        opacity = Math.random() * 0.4 + 0.5;
+      }
       stars.push({
-        x: Math.random(), y: Math.random(),
-        size: Math.random() * 0.6 + 0.3,
-        opacity: Math.random() * 0.35 + 0.15,
-        color: starColors[Math.floor(Math.random() * starColors.length)],
-      });
-    }
-    // Mid layer
-    for (let i = 0; i < (isMobile ? 50 : 90); i++) {
-      stars.push({
-        x: Math.random(), y: Math.random(),
-        size: Math.random() * 0.8 + 0.5,
-        opacity: Math.random() * 0.4 + 0.25,
-        color: starColors[Math.floor(Math.random() * starColors.length)],
-      });
-    }
-    // Near bokeh
-    for (let i = 0; i < (isMobile ? 8 : 15); i++) {
-      stars.push({
-        x: Math.random(), y: Math.random(),
-        size: Math.random() * 2.0 + 1.5,
-        opacity: Math.random() * 0.25 + 0.15,
-        color: "rgba(186,230,253,",
+        x: Math.random(),
+        y: Math.random(),
+        size,
+        opacity,
+        color: starColorPalette[Math.floor(Math.random() * starColorPalette.length)],
       });
     }
 
-    const FAR_COUNT = isMobile ? 120 : 220;
-    const MID_COUNT = isMobile ? 50 : 90;
-
+    // ─── RENDER LOOP ──────────────────────────────────────────────────────
     const render = (time: number) => {
       if (!startTimeRef.current) startTimeRef.current = time;
-      const elapsed = (time - startTimeRef.current) * 0.001;
+      const elapsed = (time - startTimeRef.current) * 0.001; // seconds
 
-      // Smooth mouse
-      mouseRef.current.x += (mouseTargetRef.current.x - mouseRef.current.x) * 0.035;
-      mouseRef.current.y += (mouseTargetRef.current.y - mouseRef.current.y) * 0.035;
+      // Smooth mouse parallax
+      mouseRef.current.x += (mouseTargetRef.current.x - mouseRef.current.x) * 0.03;
+      mouseRef.current.y += (mouseTargetRef.current.y - mouseRef.current.y) * 0.03;
       const mx = mouseRef.current.x;
       const my = mouseRef.current.y;
-      const scrollY = scrollYRef.current;
 
-      // ─── 1. BASE BACKGROUND ──────────────────────────────────────────────
-      const base = ctx.createLinearGradient(0, 0, 0, height);
-      base.addColorStop(0.0,  "#020510");
-      base.addColorStop(0.45, "#050a1e");
-      base.addColorStop(1.0,  "#010208");
-      ctx.fillStyle = base;
+      // ── 1. BASE: PURE BLACK SPACE ────────────────────────────────────────
+      ctx.fillStyle = "#000005";
       ctx.fillRect(0, 0, width, height);
 
-      // ─── 2. NEBULA CLOUDS ─────────────────────────────────────────────────
+      // ── 2. STAR FIELD ────────────────────────────────────────────────────
+      stars.forEach((star, i) => {
+        const layer = i < STAR_COUNT * 0.6 ? 0 : i < STAR_COUNT * 0.9 ? 1 : 2;
+        const mScale = layer === 0 ? 5 : layer === 1 ? 12 : 22;
+
+        const sx = (star.x * width  + (mx - 0.5) * mScale  + width)  % width;
+        const sy = (star.y * height + (my - 0.5) * mScale * 0.75 + height) % height;
+
+        // Micro-bloom for bright stars
+        if (star.size > 1.1) {
+          const bloom = ctx.createRadialGradient(sx, sy, 0, sx, sy, star.size * 5);
+          bloom.addColorStop(0,   `${star.color}${star.opacity * 0.45})`);
+          bloom.addColorStop(0.5, `${star.color}${star.opacity * 0.12})`);
+          bloom.addColorStop(1.0, "rgba(0,0,0,0)");
+          ctx.fillStyle = bloom;
+          ctx.beginPath();
+          ctx.arc(sx, sy, star.size * 5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        ctx.fillStyle = `${star.color}${star.opacity})`;
+        ctx.beginPath();
+        ctx.arc(sx, sy, star.size, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      // ── 3. NEBULA WISPS (right side, diagonal — like the reference) ──────
       ctx.save();
       ctx.globalCompositeOperation = "screen";
 
-      const drift = elapsed * 0.018;
-
-      // ── Blue nebula — large, center-left
+      // Primary diagonal wisp — upper right going top-right to center
       {
-        const bx = width * (0.15 + Math.sin(drift * 0.7) * 0.015) + (mx - 0.5) * 14;
-        const by = height * (0.42 + Math.cos(drift * 0.5) * 0.01) - scrollY * 0.02 + (my - 0.5) * 10;
-        const r = width * 1.0;
-        const g = ctx.createRadialGradient(bx, by, 0, bx, by, r);
-        g.addColorStop(0,    "rgba(30, 80, 220, 0.22)");   // boosted 4x
-        g.addColorStop(0.35, "rgba(20, 55, 160, 0.10)");
-        g.addColorStop(0.7,  "rgba(10, 30, 100, 0.04)");
-        g.addColorStop(1.0,  "rgba(0, 0, 0, 0)");
-        ctx.fillStyle = g;
-        ctx.fillRect(0, 0, width, height);
+        ctx.save();
+        const tx = width * 0.76 + (mx - 0.5) * 14;
+        const ty = height * 0.30 + (my - 0.5) * 9;
+        ctx.translate(tx, ty);
+        ctx.rotate(-0.52); // ~-30 degrees diagonal
+        ctx.scale(0.14, 1.0); // very narrow = wispy
+
+        const wg = ctx.createRadialGradient(0, -height * 0.08, 0, 0, 0, height * 0.48);
+        wg.addColorStop(0,   "rgba(180, 215, 255, 0.22)");
+        wg.addColorStop(0.25,"rgba(150, 190, 255, 0.14)");
+        wg.addColorStop(0.6, "rgba(100, 155, 245, 0.06)");
+        wg.addColorStop(1.0, "rgba(0, 0, 0, 0)");
+        ctx.fillStyle = wg;
+        ctx.fillRect(-height * 0.6, -height * 0.6, height * 1.2, height * 1.2);
+        ctx.restore();
       }
 
-      // ── Cyan nebula — upper-right
+      // Secondary wisp — further right, slightly different angle
       {
-        const cx = width * (0.80 + Math.cos(drift * 0.6) * 0.012) + (mx - 0.5) * 10;
-        const cy = height * (0.16 + Math.sin(drift * 0.4) * 0.01) - scrollY * 0.015 + (my - 0.5) * 8;
-        const r = width * 0.80;
-        const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
-        g.addColorStop(0,    "rgba(0, 190, 230, 0.16)");   // boosted ~4x
-        g.addColorStop(0.4,  "rgba(0, 145, 185, 0.07)");
-        g.addColorStop(0.8,  "rgba(0, 80, 130, 0.025)");
-        g.addColorStop(1.0,  "rgba(0, 0, 0, 0)");
-        ctx.fillStyle = g;
-        ctx.fillRect(0, 0, width, height);
+        ctx.save();
+        const tx = width * 0.88 + (mx - 0.5) * 10;
+        const ty = height * 0.16 + (my - 0.5) * 7;
+        ctx.translate(tx, ty);
+        ctx.rotate(-0.40);
+        ctx.scale(0.11, 1.0);
+
+        const wg = ctx.createRadialGradient(0, 0, 0, 0, 0, height * 0.36);
+        wg.addColorStop(0,   "rgba(200, 228, 255, 0.18)");
+        wg.addColorStop(0.35,"rgba(160, 200, 255, 0.09)");
+        wg.addColorStop(1.0, "rgba(0, 0, 0, 0)");
+        ctx.fillStyle = wg;
+        ctx.fillRect(-height * 0.45, -height * 0.45, height * 0.9, height * 0.9);
+        ctx.restore();
       }
 
-      // ── Indigo/violet nebula — lower center
+      // Tertiary faint upper-center wisp (adds depth)
       {
-        const vx = width * (0.50 + Math.sin(drift * 0.5) * 0.01) + (mx - 0.5) * 8;
-        const vy = height * (0.70 + Math.cos(drift * 0.35) * 0.012) - scrollY * 0.03 + (my - 0.5) * 6;
-        const r = width * 0.90;
-        const g = ctx.createRadialGradient(vx, vy, 0, vx, vy, r);
-        g.addColorStop(0,    "rgba(100, 40, 220, 0.18)");  // boosted ~4x
-        g.addColorStop(0.45, "rgba(75, 25, 160, 0.07)");
-        g.addColorStop(0.8,  "rgba(40, 10, 90, 0.025)");
-        g.addColorStop(1.0,  "rgba(0, 0, 0, 0)");
-        ctx.fillStyle = g;
+        ctx.save();
+        const tx = width * 0.60 + (mx - 0.5) * 8;
+        const ty = height * 0.08 + (my - 0.5) * 5;
+        ctx.translate(tx, ty);
+        ctx.rotate(-0.60);
+        ctx.scale(0.09, 1.0);
+
+        const wg = ctx.createRadialGradient(0, 0, 0, 0, 0, height * 0.28);
+        wg.addColorStop(0,   "rgba(170, 205, 255, 0.12)");
+        wg.addColorStop(0.5, "rgba(130, 170, 250, 0.05)");
+        wg.addColorStop(1.0, "rgba(0, 0, 0, 0)");
+        ctx.fillStyle = wg;
+        ctx.fillRect(-height * 0.35, -height * 0.35, height * 0.7, height * 0.7);
+        ctx.restore();
+      }
+
+      // Left background nebula cloud (depth fill)
+      {
+        const lx = width * 0.10 + (mx - 0.5) * 10 + Math.sin(elapsed * 0.05) * 6;
+        const ly = height * 0.38 + (my - 0.5) * 7;
+        const lg = ctx.createRadialGradient(lx, ly, 0, lx, ly, width * 0.52);
+        lg.addColorStop(0,    "rgba(25, 70, 180, 0.14)");
+        lg.addColorStop(0.40, "rgba(15, 50, 140, 0.06)");
+        lg.addColorStop(0.80, "rgba(8, 25, 80, 0.02)");
+        lg.addColorStop(1.0,  "rgba(0, 0, 0, 0)");
+        ctx.fillStyle = lg;
         ctx.fillRect(0, 0, width, height);
       }
 
       ctx.restore();
 
-      // ─── 3. STAR FIELD ────────────────────────────────────────────────────
-      stars.forEach((star, i) => {
-        const isFar  = i < FAR_COUNT;
-        const isMid  = i >= FAR_COUNT && i < FAR_COUNT + MID_COUNT;
-        const parallax = isFar ? 0.015 : isMid ? 0.04 : 0.09;
-        const mShiftX  = (mx - 0.5) * (isFar ? 5 : isMid ? 10 : 18);
-        const mShiftY  = (my - 0.5) * (isFar ? 4 : isMid ? 8  : 13);
-
-        const sx = (star.x * width + mShiftX + width) % width;
-        const sy = star.y * height - scrollY * parallax + mShiftY;
-
-        if (sy < -10 || sy > height + 10) return;
-
-        if (!isFar && !isMid) {
-          // Near bokeh
-          const bg = ctx.createRadialGradient(sx, sy, 0, sx, sy, star.size);
-          bg.addColorStop(0,   `${star.color}${star.opacity})`);
-          bg.addColorStop(0.4, `${star.color}${star.opacity * 0.3})`);
-          bg.addColorStop(1.0, "rgba(0,0,0,0)");
-          ctx.fillStyle = bg;
-          ctx.beginPath();
-          ctx.arc(sx, sy, star.size, 0, Math.PI * 2);
-          ctx.fill();
-        } else {
-          ctx.fillStyle = `${star.color}${star.opacity})`;
-          ctx.beginPath();
-          ctx.arc(sx, sy, star.size, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      });
-
-      // ─── 4. HORIZON GLOW — planetary arc from bottom-left ────────────────
+      // ── 4. PLANET BODY (dark, occludes stars behind it) ──────────────────
       {
+        const pMX = (mx - 0.5) * 20;
+        const pMY = (my - 0.5) * 14;
+        // Planet center: off-screen bottom-left
+        const pCX = width * (isMobile ? -0.14 : -0.10) + pMX;
+        const pCY = height * (isMobile ? 1.20 : 1.14) + pMY;
+        const pR  = Math.max(width, height) * (isMobile ? 0.95 : 0.85);
+
+        // Draw the dark planet body (occludes stars)
         ctx.save();
-        const hShiftX = (mx - 0.5) * 24;
-        const hShiftY = (my - 0.5) * 14;
+        ctx.beginPath();
+        ctx.arc(pCX, pCY, pR, 0, Math.PI * 2);
 
-        // Planet body fill — very dark, just presence
-        const hcx = width * -0.08 + hShiftX;
-        const hcy = height * 1.12 + hShiftY;
-        const hradius = width * (isMobile ? 1.05 : 0.92);
+        // Planet surface: nearly black, slight blue tint toward lit side
+        const planetGrad = ctx.createRadialGradient(
+          pCX + pR * 0.35, pCY - pR * 0.45, 0,
+          pCX, pCY, pR
+        );
+        planetGrad.addColorStop(0,   "rgba(12, 22, 52, 0.97)"); // barely visible lit side
+        planetGrad.addColorStop(0.25,"rgba(6, 12, 28, 0.99)");
+        planetGrad.addColorStop(0.7, "rgba(2, 4, 10, 1.0)");
+        planetGrad.addColorStop(1.0, "rgba(0, 1, 4, 1.0)");
+        ctx.fillStyle = planetGrad;
+        ctx.fill();
+        ctx.restore();
+      }
 
-        // Atmospheric glow — the bright ring
-        const atmGrad = ctx.createRadialGradient(hcx, hcy, hradius * 0.55, hcx, hcy, hradius);
-        atmGrad.addColorStop(0,    "rgba(0, 0, 0, 0)");
-        atmGrad.addColorStop(0.62, "rgba(5, 50, 130, 0.12)");
-        atmGrad.addColorStop(0.80, "rgba(10, 120, 220, 0.22)");  // boosted heavily
-        atmGrad.addColorStop(0.91, "rgba(60, 190, 255, 0.18)");  // bright atmospheric rim
-        atmGrad.addColorStop(0.97, "rgba(140, 220, 255, 0.08)");
-        atmGrad.addColorStop(1.0,  "rgba(0, 0, 0, 0)");
-        ctx.fillStyle = atmGrad;
+      // ── 5. PLANET ATMOSPHERIC RIM GLOW ───────────────────────────────────
+      {
+        const pMX = (mx - 0.5) * 20;
+        const pMY = (my - 0.5) * 14;
+        const pCX = width * (isMobile ? -0.14 : -0.10) + pMX;
+        const pCY = height * (isMobile ? 1.20 : 1.14) + pMY;
+        const pR  = Math.max(width, height) * (isMobile ? 0.95 : 0.85);
+
+        ctx.save();
+        ctx.globalCompositeOperation = "screen";
+
+        // Wide outer atmospheric scatter
+        const outerAtm = ctx.createRadialGradient(pCX, pCY, pR * 0.82, pCX, pCY, pR * 1.12);
+        outerAtm.addColorStop(0,    "rgba(0, 0, 0, 0)");
+        outerAtm.addColorStop(0.42, "rgba(15, 65, 175, 0.18)");
+        outerAtm.addColorStop(0.68, "rgba(45, 140, 255, 0.38)");
+        outerAtm.addColorStop(0.84, "rgba(110, 200, 255, 0.28)");
+        outerAtm.addColorStop(0.95, "rgba(170, 235, 255, 0.12)");
+        outerAtm.addColorStop(1.0,  "rgba(0, 0, 0, 0)");
+        ctx.fillStyle = outerAtm;
         ctx.fillRect(0, 0, width, height);
 
-        // Limb highlight — sharp bright edge
-        const limbGrad = ctx.createRadialGradient(hcx, hcy, hradius * 0.87, hcx, hcy, hradius * 0.98);
-        limbGrad.addColorStop(0,   "rgba(0, 0, 0, 0)");
-        limbGrad.addColorStop(0.5, "rgba(120, 210, 255, 0.12)");
-        limbGrad.addColorStop(1.0, "rgba(0, 0, 0, 0)");
-        ctx.fillStyle = limbGrad;
+        // Sharp inner limb — the bright atmospheric edge
+        const limb = ctx.createRadialGradient(pCX, pCY, pR * 0.93, pCX, pCY, pR * 1.02);
+        limb.addColorStop(0,   "rgba(0, 0, 0, 0)");
+        limb.addColorStop(0.4, "rgba(150, 220, 255, 0.28)");
+        limb.addColorStop(0.75,"rgba(200, 240, 255, 0.18)");
+        limb.addColorStop(1.0, "rgba(0, 0, 0, 0)");
+        ctx.fillStyle = limb;
+        ctx.fillRect(0, 0, width, height);
+
+        // Sunlight scatter — bright spot on upper-right arc edge
+        // (where the "sun" would be behind/above)
+        const bx = pCX + pR * 0.48;
+        const by = pCY - pR * 0.54;
+        const sunscatter = ctx.createRadialGradient(bx, by, 0, bx, by, pR * 0.42);
+        sunscatter.addColorStop(0,   "rgba(210, 240, 255, 0.25)");
+        sunscatter.addColorStop(0.35,"rgba(140, 200, 255, 0.14)");
+        sunscatter.addColorStop(0.70,"rgba(80, 155, 240, 0.06)");
+        sunscatter.addColorStop(1.0, "rgba(0, 0, 0, 0)");
+        ctx.fillStyle = sunscatter;
+        ctx.fillRect(0, 0, width, height);
+
+        // Atmospheric halo — thin blue ring at the very edge (terminator glow)
+        const halo = ctx.createRadialGradient(pCX, pCY, pR * 0.96, pCX, pCY, pR * 1.05);
+        halo.addColorStop(0,   "rgba(0, 0, 0, 0)");
+        halo.addColorStop(0.5, "rgba(130, 210, 255, 0.22)");
+        halo.addColorStop(1.0, "rgba(0, 0, 0, 0)");
+        ctx.fillStyle = halo;
         ctx.fillRect(0, 0, width, height);
 
         ctx.restore();
       }
 
-      // ─── 5. CINEMATIC LIGHT VOLUMES ──────────────────────────────────────
+      // ── 6. CINEMATIC LIGHT VOLUME (from upper-right "sun") ───────────────
       ctx.save();
       ctx.globalCompositeOperation = "screen";
-
-      // Diagonal beam from top-right
       {
-        const lx = width * 0.88 + (mx - 0.5) * 18;
-        const ly = -height * 0.05 + (my - 0.5) * 12;
-        const lg = ctx.createLinearGradient(lx, ly, lx - width * 0.5, ly + height * 0.8);
-        lg.addColorStop(0,   "rgba(120, 190, 255, 0.08)");  // boosted ~3x
-        lg.addColorStop(0.5, "rgba(70, 140, 230, 0.04)");
+        const lx = width * 0.92 + (mx - 0.5) * 18;
+        const ly = height * -0.04 + (my - 0.5) * 12;
+        const lg = ctx.createLinearGradient(lx, ly, lx - width * 0.65, ly + height * 1.0);
+        lg.addColorStop(0,   "rgba(200, 230, 255, 0.055)");
+        lg.addColorStop(0.35,"rgba(140, 185, 255, 0.025)");
+        lg.addColorStop(0.7, "rgba(80, 130, 220, 0.01)");
         lg.addColorStop(1.0, "rgba(0, 0, 0, 0)");
         ctx.fillStyle = lg;
         ctx.fillRect(0, 0, width, height);
       }
-
-      // Vertical god-ray behind hero text
-      {
-        const rayX = width * 0.5 + (mx - 0.5) * 12;
-        const rayW = width * 0.40;
-        const rg = ctx.createLinearGradient(rayX, 0, rayX, height * 0.65);
-        rg.addColorStop(0,   "rgba(160, 220, 255, 0.045)"); // boosted ~3.5x
-        rg.addColorStop(0.5, "rgba(90, 160, 255, 0.02)");
-        rg.addColorStop(1.0, "rgba(0, 0, 0, 0)");
-        ctx.fillStyle = rg;
-        ctx.fillRect(rayX - rayW / 2, 0, rayW, height * 0.65);
-      }
-
       ctx.restore();
 
-      // ─── 6. FOCAL STAR — upper-right, breathing ──────────────────────────
-      {
-        const fsx = width * 0.78 + (mx - 0.5) * 20;
-        const fsy = height * 0.20 - scrollY * 0.04 + (my - 0.5) * 14;
-
-        if (fsy > -120 && fsy < height + 120) {
-          const pulse = 1 + 0.06 * Math.sin(elapsed * 0.65);
-          const pOp   = 0.95 + 0.05 * Math.sin(elapsed * 0.65);
-
-          ctx.beginPath();
-          ctx.arc(fsx, fsy, 1.8 * pulse, 0, Math.PI * 2);
-          ctx.fillStyle = "#ffffff";
-          ctx.fill();
-
-          const ig = ctx.createRadialGradient(fsx, fsy, 0, fsx, fsy, 20 * pulse);
-          ig.addColorStop(0,   "rgba(255,255,255,0.85)");
-          ig.addColorStop(0.4, "rgba(186,230,253,0.35)");
-          ig.addColorStop(1.0, "rgba(0,0,0,0)");
-          ctx.fillStyle = ig;
-          ctx.beginPath(); ctx.arc(fsx, fsy, 20 * pulse, 0, Math.PI * 2); ctx.fill();
-
-          const og = ctx.createRadialGradient(fsx, fsy, 0, fsx, fsy, 100 * pulse);
-          og.addColorStop(0,   "rgba(200,235,255,0.22)");
-          og.addColorStop(0.5, "rgba(14,56,122,0.07)");
-          og.addColorStop(1.0, "rgba(0,0,0,0)");
-          ctx.fillStyle = og;
-          ctx.beginPath(); ctx.arc(fsx, fsy, 100 * pulse, 0, Math.PI * 2); ctx.fill();
-
-          // Diffraction spikes
-          ctx.save();
-          ctx.translate(fsx, fsy);
-          ctx.rotate(elapsed * 0.012);
-          const sLen = (isMobile ? 55 : 100) * pulse;
-          const sg = ctx.createLinearGradient(-sLen, 0, sLen, 0);
-          sg.addColorStop(0,   "rgba(255,255,255,0)");
-          sg.addColorStop(0.5, `rgba(220,240,255,${0.28 * pOp})`);
-          sg.addColorStop(1.0, "rgba(255,255,255,0)");
-          ctx.strokeStyle = sg;
-          ctx.lineWidth = 0.7;
-          ctx.beginPath();
-          ctx.moveTo(-sLen, 0); ctx.lineTo(sLen, 0);
-          ctx.moveTo(0, -sLen); ctx.lineTo(0, sLen);
-          ctx.stroke();
-          ctx.restore();
-        }
+      // ── 7. FILM GRAIN ────────────────────────────────────────────────────
+      if (grainPattern) {
+        ctx.save();
+        ctx.globalAlpha = 0.038;
+        ctx.globalCompositeOperation = "overlay";
+        ctx.fillStyle = grainPattern;
+        ctx.fillRect(0, 0, width, height);
+        ctx.restore();
       }
 
-      // ─── 7. EDGE VIGNETTE ────────────────────────────────────────────────
-      const vig = ctx.createRadialGradient(
-        width / 2, height / 2, height * 0.28,
-        width / 2, height / 2, height * 0.95
-      );
-      vig.addColorStop(0,   "rgba(0,0,0,0)");
-      vig.addColorStop(1.0, "rgba(0,0,0,0.5)");
-      ctx.fillStyle = vig;
-      ctx.fillRect(0, 0, width, height);
+      // ── 8. EDGE VIGNETTE ─────────────────────────────────────────────────
+      {
+        const vig = ctx.createRadialGradient(
+          width * 0.50, height * 0.42, height * 0.18,
+          width * 0.50, height * 0.50, height * 0.92
+        );
+        vig.addColorStop(0,   "rgba(0,0,0,0)");
+        vig.addColorStop(0.7, "rgba(0,0,0,0.18)");
+        vig.addColorStop(1.0, "rgba(0,0,0,0.62)");
+        ctx.fillStyle = vig;
+        ctx.fillRect(0, 0, width, height);
+      }
 
       animationFrameRef.current = requestAnimationFrame(render);
     };
@@ -334,7 +359,7 @@ export default function CosmicBackground() {
   }, [isClient]);
 
   if (!isClient) {
-    return <div className="fixed inset-0 w-full h-full bg-[#020510] pointer-events-none -z-40" />;
+    return <div className="fixed inset-0 w-full h-full bg-[#000005] pointer-events-none -z-40" />;
   }
 
   return (
