@@ -63,7 +63,7 @@ export default function App() {
   }, [activeTab, activeProjectSlug]);
 
   return (
-    <div className="min-h-screen bg-[#030303] text-[#e5e7eb] font-sans relative selection:bg-cyan-500/20 selection:text-cyan-200 overflow-x-hidden flex flex-col justify-between print:bg-white print:text-black">
+    <div className="min-h-screen bg-transparent text-[#e5e7eb] font-sans relative selection:bg-cyan-500/20 selection:text-cyan-200 overflow-x-hidden flex flex-col justify-between print:bg-white print:text-black">
       
       {/* Dynamic Cosmic Deep-Space Visual System */}
       <CosmicBackground />
