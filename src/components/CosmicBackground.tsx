@@ -58,291 +58,269 @@ export default function CosmicBackground() {
 
     const isMobile = window.innerWidth < 768;
 
-    // ─── PRECOMPUTE GRAIN TEXTURE ─────────────────────────────────────────
-    const grainSize = 256;
+    // ─── GRAIN TEXTURE (precomputed once) ─────────────────────────────────
     const grainCanvas = document.createElement("canvas");
-    grainCanvas.width = grainSize;
-    grainCanvas.height = grainSize;
+    grainCanvas.width = 256; grainCanvas.height = 256;
     const gctx = grainCanvas.getContext("2d")!;
-    const imgData = gctx.createImageData(grainSize, grainSize);
+    const imgData = gctx.createImageData(256, 256);
     for (let i = 0; i < imgData.data.length; i += 4) {
       const v = Math.floor(Math.random() * 255);
-      imgData.data[i]     = v;
-      imgData.data[i + 1] = v;
-      imgData.data[i + 2] = v;
-      imgData.data[i + 3] = Math.floor(Math.random() * 28 + 4);
+      imgData.data[i] = v; imgData.data[i+1] = v; imgData.data[i+2] = v;
+      imgData.data[i+3] = Math.floor(Math.random() * 22 + 3);
     }
     gctx.putImageData(imgData, 0, 0);
     const grainPattern = ctx.createPattern(grainCanvas, "repeat");
 
-    // ─── PRECOMPUTE STAR FIELD ────────────────────────────────────────────
-    const STAR_COUNT = isMobile ? 280 : 480;
+    // ─── STAR FIELD (precomputed) ─────────────────────────────────────────
+    const STAR_COUNT = isMobile ? 260 : 440;
     const stars: Star[] = [];
-    const starColorPalette = [
-      "rgba(255,255,255,",
-      "rgba(220,238,255,",
-      "rgba(190,215,255,",
-      "rgba(170,205,255,",
-      "rgba(255,252,230,",  // slightly warm (rare)
+    const starColors = [
+      "rgba(255,255,255,", "rgba(220,238,255,",
+      "rgba(190,215,255,", "rgba(255,252,230,",
     ];
-
     for (let i = 0; i < STAR_COUNT; i++) {
       const roll = Math.random();
-      let size: number, opacity: number;
-      if (roll < 0.65) {
-        // Majority: tiny distant stars
-        size = Math.random() * 0.45 + 0.18;
-        opacity = Math.random() * 0.4 + 0.12;
-      } else if (roll < 0.90) {
-        // Mid: slightly brighter
-        size = Math.random() * 0.65 + 0.45;
-        opacity = Math.random() * 0.5 + 0.25;
-      } else {
-        // Few: prominent with micro-bloom
-        size = Math.random() * 0.9 + 0.9;
-        opacity = Math.random() * 0.4 + 0.5;
-      }
+      const size    = roll < 0.68 ? Math.random() * 0.42 + 0.18
+                    : roll < 0.92 ? Math.random() * 0.60 + 0.44
+                    :               Math.random() * 0.85 + 0.90;
+      const opacity = roll < 0.68 ? Math.random() * 0.38 + 0.12
+                    : roll < 0.92 ? Math.random() * 0.45 + 0.22
+                    :               Math.random() * 0.38 + 0.48;
       stars.push({
-        x: Math.random(),
-        y: Math.random(),
-        size,
-        opacity,
-        color: starColorPalette[Math.floor(Math.random() * starColorPalette.length)],
+        x: Math.random(), y: Math.random(), size, opacity,
+        color: starColors[Math.floor(Math.random() * starColors.length)],
       });
     }
 
-    // ─── RENDER LOOP ──────────────────────────────────────────────────────
+    // ─── RENDER ──────────────────────────────────────────────────────────
     const render = (time: number) => {
       if (!startTimeRef.current) startTimeRef.current = time;
-      const elapsed = (time - startTimeRef.current) * 0.001; // seconds
+      const elapsed = (time - startTimeRef.current) * 0.001;
 
-      // Smooth mouse parallax
       mouseRef.current.x += (mouseTargetRef.current.x - mouseRef.current.x) * 0.03;
       mouseRef.current.y += (mouseTargetRef.current.y - mouseRef.current.y) * 0.03;
       const mx = mouseRef.current.x;
       const my = mouseRef.current.y;
 
-      // ── 1. BASE: PURE BLACK SPACE ────────────────────────────────────────
-      ctx.fillStyle = "#000005";
+      // ── LAYER 1: BLACK SPACE ──────────────────────────────────────────
+      ctx.fillStyle = "#000004";
       ctx.fillRect(0, 0, width, height);
 
-      // ── 2. STAR FIELD ────────────────────────────────────────────────────
+      // ── LAYER 2: STAR FIELD ───────────────────────────────────────────
       stars.forEach((star, i) => {
-        const layer = i < STAR_COUNT * 0.6 ? 0 : i < STAR_COUNT * 0.9 ? 1 : 2;
-        const mScale = layer === 0 ? 5 : layer === 1 ? 12 : 22;
-
-        const sx = (star.x * width  + (mx - 0.5) * mScale  + width)  % width;
+        const layer   = i < STAR_COUNT * 0.65 ? 0 : i < STAR_COUNT * 0.92 ? 1 : 2;
+        const mScale  = layer === 0 ? 4 : layer === 1 ? 10 : 20;
+        const sx = (star.x * width  + (mx - 0.5) * mScale + width)  % width;
         const sy = (star.y * height + (my - 0.5) * mScale * 0.75 + height) % height;
-
-        // Micro-bloom for bright stars
-        if (star.size > 1.1) {
-          const bloom = ctx.createRadialGradient(sx, sy, 0, sx, sy, star.size * 5);
-          bloom.addColorStop(0,   `${star.color}${star.opacity * 0.45})`);
-          bloom.addColorStop(0.5, `${star.color}${star.opacity * 0.12})`);
-          bloom.addColorStop(1.0, "rgba(0,0,0,0)");
-          ctx.fillStyle = bloom;
-          ctx.beginPath();
-          ctx.arc(sx, sy, star.size * 5, 0, Math.PI * 2);
-          ctx.fill();
+        if (sy < 0 || sy > height) return;
+        if (star.size > 1.05) {
+          const bl = ctx.createRadialGradient(sx, sy, 0, sx, sy, star.size * 4.5);
+          bl.addColorStop(0, `${star.color}${star.opacity * 0.5})`);
+          bl.addColorStop(1, "rgba(0,0,0,0)");
+          ctx.fillStyle = bl;
+          ctx.beginPath(); ctx.arc(sx, sy, star.size * 4.5, 0, Math.PI * 2); ctx.fill();
         }
-
         ctx.fillStyle = `${star.color}${star.opacity})`;
-        ctx.beginPath();
-        ctx.arc(sx, sy, star.size, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.beginPath(); ctx.arc(sx, sy, star.size, 0, Math.PI * 2); ctx.fill();
       });
 
-      // ── 3. NEBULA WISPS (right side, diagonal — like the reference) ──────
+      // ── LAYER 3: NEBULAE (left + right volumetric clouds) ─────────────
       ctx.save();
       ctx.globalCompositeOperation = "screen";
 
-      // Primary diagonal wisp — upper right going top-right to center
+      // ─ LEFT NEBULA — large, centered left-third, fills upper-left area
       {
-        ctx.save();
-        const tx = width * 0.76 + (mx - 0.5) * 14;
-        const ty = height * 0.30 + (my - 0.5) * 9;
-        ctx.translate(tx, ty);
-        ctx.rotate(-0.52); // ~-30 degrees diagonal
-        ctx.scale(0.14, 1.0); // very narrow = wispy
+        const lx = width * 0.08 + (mx - 0.5) * 16 + Math.sin(elapsed * 0.04) * 5;
+        const ly = height * 0.38 + (my - 0.5) * 10 + Math.cos(elapsed * 0.03) * 4;
 
-        const wg = ctx.createRadialGradient(0, -height * 0.08, 0, 0, 0, height * 0.48);
-        wg.addColorStop(0,   "rgba(180, 215, 255, 0.22)");
-        wg.addColorStop(0.25,"rgba(150, 190, 255, 0.14)");
-        wg.addColorStop(0.6, "rgba(100, 155, 245, 0.06)");
-        wg.addColorStop(1.0, "rgba(0, 0, 0, 0)");
-        ctx.fillStyle = wg;
-        ctx.fillRect(-height * 0.6, -height * 0.6, height * 1.2, height * 1.2);
-        ctx.restore();
-      }
-
-      // Secondary wisp — further right, slightly different angle
-      {
-        ctx.save();
-        const tx = width * 0.88 + (mx - 0.5) * 10;
-        const ty = height * 0.16 + (my - 0.5) * 7;
-        ctx.translate(tx, ty);
-        ctx.rotate(-0.40);
-        ctx.scale(0.11, 1.0);
-
-        const wg = ctx.createRadialGradient(0, 0, 0, 0, 0, height * 0.36);
-        wg.addColorStop(0,   "rgba(200, 228, 255, 0.18)");
-        wg.addColorStop(0.35,"rgba(160, 200, 255, 0.09)");
-        wg.addColorStop(1.0, "rgba(0, 0, 0, 0)");
-        ctx.fillStyle = wg;
-        ctx.fillRect(-height * 0.45, -height * 0.45, height * 0.9, height * 0.9);
-        ctx.restore();
-      }
-
-      // Tertiary faint upper-center wisp (adds depth)
-      {
-        ctx.save();
-        const tx = width * 0.60 + (mx - 0.5) * 8;
-        const ty = height * 0.08 + (my - 0.5) * 5;
-        ctx.translate(tx, ty);
-        ctx.rotate(-0.60);
-        ctx.scale(0.09, 1.0);
-
-        const wg = ctx.createRadialGradient(0, 0, 0, 0, 0, height * 0.28);
-        wg.addColorStop(0,   "rgba(170, 205, 255, 0.12)");
-        wg.addColorStop(0.5, "rgba(130, 170, 250, 0.05)");
-        wg.addColorStop(1.0, "rgba(0, 0, 0, 0)");
-        ctx.fillStyle = wg;
-        ctx.fillRect(-height * 0.35, -height * 0.35, height * 0.7, height * 0.7);
-        ctx.restore();
-      }
-
-      // Left background nebula cloud (depth fill)
-      {
-        const lx = width * 0.10 + (mx - 0.5) * 10 + Math.sin(elapsed * 0.05) * 6;
-        const ly = height * 0.38 + (my - 0.5) * 7;
-        const lg = ctx.createRadialGradient(lx, ly, 0, lx, ly, width * 0.52);
-        lg.addColorStop(0,    "rgba(25, 70, 180, 0.14)");
-        lg.addColorStop(0.40, "rgba(15, 50, 140, 0.06)");
-        lg.addColorStop(0.80, "rgba(8, 25, 80, 0.02)");
-        lg.addColorStop(1.0,  "rgba(0, 0, 0, 0)");
-        ctx.fillStyle = lg;
+        // Outer volume — wide soft glow
+        const lg1 = ctx.createRadialGradient(lx, ly, 0, lx, ly, width * 0.55);
+        lg1.addColorStop(0,    "rgba(30, 75, 190, 0.28)");
+        lg1.addColorStop(0.30, "rgba(20, 55, 160, 0.16)");
+        lg1.addColorStop(0.60, "rgba(12, 35, 115, 0.07)");
+        lg1.addColorStop(1.0,  "rgba(0, 0, 0, 0)");
+        ctx.fillStyle = lg1;
         ctx.fillRect(0, 0, width, height);
+
+        // Inner brighter core (makes it look volumetric)
+        const lg2 = ctx.createRadialGradient(lx + width * 0.04, ly - height * 0.05, 0, lx, ly, width * 0.28);
+        lg2.addColorStop(0,    "rgba(60, 130, 240, 0.20)");
+        lg2.addColorStop(0.40, "rgba(40, 95, 210, 0.10)");
+        lg2.addColorStop(1.0,  "rgba(0, 0, 0, 0)");
+        ctx.fillStyle = lg2;
+        ctx.fillRect(0, 0, width, height);
+
+        // Wispy extension toward upper-left
+        {
+          ctx.save();
+          ctx.translate(lx - width * 0.10, ly - height * 0.18);
+          ctx.rotate(-0.30);
+          ctx.scale(0.30, 1.0);
+          const wg = ctx.createRadialGradient(0, 0, 0, 0, 0, height * 0.35);
+          wg.addColorStop(0,   "rgba(80, 150, 255, 0.14)");
+          wg.addColorStop(0.5, "rgba(40, 100, 220, 0.06)");
+          wg.addColorStop(1.0, "rgba(0, 0, 0, 0)");
+          ctx.fillStyle = wg;
+          ctx.fillRect(-height * 0.45, -height * 0.45, height * 0.9, height * 0.9);
+          ctx.restore();
+        }
+      }
+
+      // ─ RIGHT NEBULA — diagonal wisps, upper-right quadrant
+      {
+        const rx = width * 0.82 + (mx - 0.5) * 12;
+        const ry = height * 0.28 + (my - 0.5) * 8;
+
+        // Outer soft volume
+        const rg1 = ctx.createRadialGradient(rx, ry, 0, rx, ry, width * 0.48);
+        rg1.addColorStop(0,    "rgba(30, 90, 210, 0.22)");
+        rg1.addColorStop(0.35, "rgba(20, 65, 175, 0.12)");
+        rg1.addColorStop(0.70, "rgba(10, 35, 120, 0.05)");
+        rg1.addColorStop(1.0,  "rgba(0, 0, 0, 0)");
+        ctx.fillStyle = rg1;
+        ctx.fillRect(0, 0, width, height);
+
+        // Bright inner core
+        const rg2 = ctx.createRadialGradient(rx - width * 0.03, ry - height * 0.04, 0, rx, ry, width * 0.24);
+        rg2.addColorStop(0,    "rgba(100, 175, 255, 0.22)");
+        rg2.addColorStop(0.35, "rgba(65, 135, 245, 0.11)");
+        rg2.addColorStop(1.0,  "rgba(0, 0, 0, 0)");
+        ctx.fillStyle = rg2;
+        ctx.fillRect(0, 0, width, height);
+
+        // Primary diagonal wisp — thin, long, characteristic streak
+        {
+          ctx.save();
+          ctx.translate(rx - width * 0.04, ry + height * 0.02);
+          ctx.rotate(-0.52);
+          ctx.scale(0.12, 1.0);
+          const wg = ctx.createRadialGradient(0, -height * 0.06, 0, 0, 0, height * 0.44);
+          wg.addColorStop(0,    "rgba(180, 218, 255, 0.26)");
+          wg.addColorStop(0.28, "rgba(140, 188, 255, 0.14)");
+          wg.addColorStop(0.60, "rgba(90, 145, 245, 0.06)");
+          wg.addColorStop(1.0,  "rgba(0, 0, 0, 0)");
+          ctx.fillStyle = wg;
+          ctx.fillRect(-height * 0.55, -height * 0.55, height * 1.1, height * 1.1);
+          ctx.restore();
+        }
+
+        // Secondary wisp — further upper right
+        {
+          ctx.save();
+          ctx.translate(width * 0.93 + (mx - 0.5) * 8, height * 0.12 + (my - 0.5) * 6);
+          ctx.rotate(-0.38);
+          ctx.scale(0.10, 1.0);
+          const wg = ctx.createRadialGradient(0, 0, 0, 0, 0, height * 0.30);
+          wg.addColorStop(0,   "rgba(200, 228, 255, 0.20)");
+          wg.addColorStop(0.4, "rgba(155, 198, 255, 0.09)");
+          wg.addColorStop(1.0, "rgba(0, 0, 0, 0)");
+          ctx.fillStyle = wg;
+          ctx.fillRect(-height * 0.38, -height * 0.38, height * 0.76, height * 0.76);
+          ctx.restore();
+        }
       }
 
       ctx.restore();
 
-      // ── 4. PLANET BODY (dark, occludes stars behind it) ──────────────────
+      // ── LAYER 4: PLANET BODY — small, bottom-left corner only ─────────
+      // Center pushed far off-screen so only a thin arc shows
       {
-        const pMX = (mx - 0.5) * 20;
-        const pMY = (my - 0.5) * 14;
-        // Planet center: off-screen bottom-left
-        const pCX = width * (isMobile ? -0.14 : -0.10) + pMX;
-        const pCY = height * (isMobile ? 1.20 : 1.14) + pMY;
-        const pR  = Math.max(width, height) * (isMobile ? 0.95 : 0.85);
+        const pMX = (mx - 0.5) * 14;
+        const pMY = (my - 0.5) * 10;
+        // Aggressively push center out: -50% left, 155% down
+        const pCX = width  * (isMobile ? -0.55 : -0.50) + pMX;
+        const pCY = height * (isMobile ? 1.60  : 1.55)  + pMY;
+        // Use height (not max) as base so arc is proportionally smaller on wide screens
+        const pR  = height * (isMobile ? 1.05 : 1.00);
 
-        // Draw the dark planet body (occludes stars)
+        // Dark planet body (occludes stars beneath the arc)
         ctx.save();
         ctx.beginPath();
         ctx.arc(pCX, pCY, pR, 0, Math.PI * 2);
-
-        // Planet surface: nearly black, slight blue tint toward lit side
-        const planetGrad = ctx.createRadialGradient(
-          pCX + pR * 0.35, pCY - pR * 0.45, 0,
+        const bodyGrad = ctx.createRadialGradient(
+          pCX + pR * 0.32, pCY - pR * 0.42, 0,
           pCX, pCY, pR
         );
-        planetGrad.addColorStop(0,   "rgba(12, 22, 52, 0.97)"); // barely visible lit side
-        planetGrad.addColorStop(0.25,"rgba(6, 12, 28, 0.99)");
-        planetGrad.addColorStop(0.7, "rgba(2, 4, 10, 1.0)");
-        planetGrad.addColorStop(1.0, "rgba(0, 1, 4, 1.0)");
-        ctx.fillStyle = planetGrad;
+        bodyGrad.addColorStop(0,    "rgba(10, 18, 42, 0.96)");
+        bodyGrad.addColorStop(0.30, "rgba(5, 10, 24, 0.99)");
+        bodyGrad.addColorStop(0.75, "rgba(2, 4, 9, 1.0)");
+        bodyGrad.addColorStop(1.0,  "rgba(1, 2, 5, 1.0)");
+        ctx.fillStyle = bodyGrad;
         ctx.fill();
         ctx.restore();
-      }
 
-      // ── 5. PLANET ATMOSPHERIC RIM GLOW ───────────────────────────────────
-      {
-        const pMX = (mx - 0.5) * 20;
-        const pMY = (my - 0.5) * 14;
-        const pCX = width * (isMobile ? -0.14 : -0.10) + pMX;
-        const pCY = height * (isMobile ? 1.20 : 1.14) + pMY;
-        const pR  = Math.max(width, height) * (isMobile ? 0.95 : 0.85);
-
+        // Atmospheric rim glow layers
         ctx.save();
         ctx.globalCompositeOperation = "screen";
 
-        // Wide outer atmospheric scatter
-        const outerAtm = ctx.createRadialGradient(pCX, pCY, pR * 0.82, pCX, pCY, pR * 1.12);
+        // Wide outer scatter
+        const outerAtm = ctx.createRadialGradient(pCX, pCY, pR * 0.86, pCX, pCY, pR * 1.10);
         outerAtm.addColorStop(0,    "rgba(0, 0, 0, 0)");
-        outerAtm.addColorStop(0.42, "rgba(15, 65, 175, 0.18)");
-        outerAtm.addColorStop(0.68, "rgba(45, 140, 255, 0.38)");
-        outerAtm.addColorStop(0.84, "rgba(110, 200, 255, 0.28)");
-        outerAtm.addColorStop(0.95, "rgba(170, 235, 255, 0.12)");
+        outerAtm.addColorStop(0.40, "rgba(12, 55, 165, 0.20)");
+        outerAtm.addColorStop(0.68, "rgba(40, 135, 255, 0.38)");
+        outerAtm.addColorStop(0.84, "rgba(105, 200, 255, 0.26)");
+        outerAtm.addColorStop(0.95, "rgba(165, 232, 255, 0.10)");
         outerAtm.addColorStop(1.0,  "rgba(0, 0, 0, 0)");
         ctx.fillStyle = outerAtm;
         ctx.fillRect(0, 0, width, height);
 
-        // Sharp inner limb — the bright atmospheric edge
-        const limb = ctx.createRadialGradient(pCX, pCY, pR * 0.93, pCX, pCY, pR * 1.02);
+        // Sharp limb highlight
+        const limb = ctx.createRadialGradient(pCX, pCY, pR * 0.94, pCX, pCY, pR * 1.02);
         limb.addColorStop(0,   "rgba(0, 0, 0, 0)");
-        limb.addColorStop(0.4, "rgba(150, 220, 255, 0.28)");
+        limb.addColorStop(0.4, "rgba(145, 215, 255, 0.30)");
         limb.addColorStop(0.75,"rgba(200, 240, 255, 0.18)");
         limb.addColorStop(1.0, "rgba(0, 0, 0, 0)");
         ctx.fillStyle = limb;
         ctx.fillRect(0, 0, width, height);
 
-        // Sunlight scatter — bright spot on upper-right arc edge
-        // (where the "sun" would be behind/above)
-        const bx = pCX + pR * 0.48;
-        const by = pCY - pR * 0.54;
-        const sunscatter = ctx.createRadialGradient(bx, by, 0, bx, by, pR * 0.42);
-        sunscatter.addColorStop(0,   "rgba(210, 240, 255, 0.25)");
-        sunscatter.addColorStop(0.35,"rgba(140, 200, 255, 0.14)");
-        sunscatter.addColorStop(0.70,"rgba(80, 155, 240, 0.06)");
-        sunscatter.addColorStop(1.0, "rgba(0, 0, 0, 0)");
-        ctx.fillStyle = sunscatter;
-        ctx.fillRect(0, 0, width, height);
-
-        // Atmospheric halo — thin blue ring at the very edge (terminator glow)
-        const halo = ctx.createRadialGradient(pCX, pCY, pR * 0.96, pCX, pCY, pR * 1.05);
-        halo.addColorStop(0,   "rgba(0, 0, 0, 0)");
-        halo.addColorStop(0.5, "rgba(130, 210, 255, 0.22)");
-        halo.addColorStop(1.0, "rgba(0, 0, 0, 0)");
-        ctx.fillStyle = halo;
+        // Sunlight backscatter at arc peak
+        const bx = pCX + pR * 0.46;
+        const by = pCY - pR * 0.52;
+        const bs = ctx.createRadialGradient(bx, by, 0, bx, by, pR * 0.36);
+        bs.addColorStop(0,    "rgba(200, 238, 255, 0.22)");
+        bs.addColorStop(0.40, "rgba(130, 195, 255, 0.12)");
+        bs.addColorStop(1.0,  "rgba(0, 0, 0, 0)");
+        ctx.fillStyle = bs;
         ctx.fillRect(0, 0, width, height);
 
         ctx.restore();
       }
 
-      // ── 6. CINEMATIC LIGHT VOLUME (from upper-right "sun") ───────────────
+      // ── LAYER 5: LIGHT VOLUME (faint diagonal from upper-right) ──────────
       ctx.save();
       ctx.globalCompositeOperation = "screen";
       {
-        const lx = width * 0.92 + (mx - 0.5) * 18;
-        const ly = height * -0.04 + (my - 0.5) * 12;
+        const lx = width * 0.94 + (mx - 0.5) * 16;
+        const ly = height * -0.06 + (my - 0.5) * 10;
         const lg = ctx.createLinearGradient(lx, ly, lx - width * 0.65, ly + height * 1.0);
-        lg.addColorStop(0,   "rgba(200, 230, 255, 0.055)");
-        lg.addColorStop(0.35,"rgba(140, 185, 255, 0.025)");
-        lg.addColorStop(0.7, "rgba(80, 130, 220, 0.01)");
+        lg.addColorStop(0,   "rgba(190, 225, 255, 0.05)");
+        lg.addColorStop(0.4, "rgba(120, 175, 255, 0.022)");
         lg.addColorStop(1.0, "rgba(0, 0, 0, 0)");
         ctx.fillStyle = lg;
         ctx.fillRect(0, 0, width, height);
       }
       ctx.restore();
 
-      // ── 7. FILM GRAIN ────────────────────────────────────────────────────
+      // ── LAYER 6: FILM GRAIN ───────────────────────────────────────────────
       if (grainPattern) {
         ctx.save();
-        ctx.globalAlpha = 0.038;
+        ctx.globalAlpha = 0.036;
         ctx.globalCompositeOperation = "overlay";
         ctx.fillStyle = grainPattern;
         ctx.fillRect(0, 0, width, height);
         ctx.restore();
       }
 
-      // ── 8. EDGE VIGNETTE ─────────────────────────────────────────────────
+      // ── LAYER 7: VIGNETTE — keeps center open and dark ───────────────────
       {
+        // Stronger on top/right to let nebulae fade naturally
         const vig = ctx.createRadialGradient(
-          width * 0.50, height * 0.42, height * 0.18,
-          width * 0.50, height * 0.50, height * 0.92
+          width * 0.50, height * 0.40, height * 0.15,
+          width * 0.50, height * 0.48, height * 0.90
         );
         vig.addColorStop(0,   "rgba(0,0,0,0)");
-        vig.addColorStop(0.7, "rgba(0,0,0,0.18)");
-        vig.addColorStop(1.0, "rgba(0,0,0,0.62)");
+        vig.addColorStop(0.65,"rgba(0,0,0,0.14)");
+        vig.addColorStop(1.0, "rgba(0,0,0,0.58)");
         ctx.fillStyle = vig;
         ctx.fillRect(0, 0, width, height);
       }
@@ -351,7 +329,6 @@ export default function CosmicBackground() {
     };
 
     animationFrameRef.current = requestAnimationFrame(render);
-
     return () => {
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
       window.removeEventListener("resize", resizeCanvas);
@@ -359,7 +336,7 @@ export default function CosmicBackground() {
   }, [isClient]);
 
   if (!isClient) {
-    return <div className="fixed inset-0 w-full h-full bg-[#000005] pointer-events-none -z-40" />;
+    return <div className="fixed inset-0 w-full h-full bg-[#000004] pointer-events-none -z-40" />;
   }
 
   return (
