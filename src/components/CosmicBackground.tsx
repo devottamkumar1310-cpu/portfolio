@@ -1,24 +1,23 @@
 import { useEffect, useRef, useState } from "react";
 
-interface Star { x: number; y: number; size: number; opacity: number; tint: number; }
+interface Star { x: number; y: number; r: number; a: number; }
 
 export default function CosmicBackground() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const animRef    = useRef<number | null>(null);
-  const tRef       = useRef<number | null>(null);
-  const mouseRef   = useRef({ x: 0.5, y: 0.5 });
-  const mouseTgt   = useRef({ x: 0.5, y: 0.5 });
+  const rafRef    = useRef<number | null>(null);
+  const mouseRef  = useRef({ x: 0.5, y: 0.5 });
+  const mouseTgt  = useRef({ x: 0.5, y: 0.5 });
   const [ready, setReady] = useState(false);
 
   useEffect(() => { setReady(true); }, []);
 
   useEffect(() => {
     if (!ready) return;
-    const onMouse = (e: MouseEvent) => {
+    const onM = (e: MouseEvent) => {
       mouseTgt.current = { x: e.clientX / window.innerWidth, y: e.clientY / window.innerHeight };
     };
-    window.addEventListener("mousemove", onMouse, { passive: true });
-    return () => window.removeEventListener("mousemove", onMouse);
+    window.addEventListener("mousemove", onM, { passive: true });
+    return () => window.removeEventListener("mousemove", onM);
   }, [ready]);
 
   useEffect(() => {
@@ -38,10 +37,9 @@ export default function CosmicBackground() {
     };
     resize();
     window.addEventListener("resize", resize);
-
     const mobile = W < 768;
 
-    // ── Grain texture (once) ───────────────────────────────────────────────
+    // ── Grain (once) ──────────────────────────────────────────────────────
     const gc = document.createElement("canvas");
     gc.width = 256; gc.height = 256;
     const gx = gc.getContext("2d")!;
@@ -49,285 +47,263 @@ export default function CosmicBackground() {
     for (let i = 0; i < gi.data.length; i += 4) {
       const v = Math.floor(Math.random() * 255);
       gi.data[i] = v; gi.data[i+1] = v; gi.data[i+2] = v;
-      gi.data[i+3] = Math.floor(Math.random() * 20 + 2);
+      gi.data[i+3] = Math.floor(Math.random() * 16 + 2);
     }
     gx.putImageData(gi, 0, 0);
     const grain = ctx.createPattern(gc, "repeat");
 
-    // ── Stars (varied density, no glow) ───────────────────────────────────
-    const N = mobile ? 280 : 500;
-    const stars: Star[] = Array.from({ length: N }, (_, i) => {
-      const far = i < N * 0.75;
-      return {
-        x:       Math.random(),
-        y:       Math.random(),
-        size:    far ? Math.random() * 0.40 + 0.12 : Math.random() * 0.65 + 0.38,
-        opacity: far ? Math.random() * 0.30 + 0.08 : Math.random() * 0.42 + 0.28,
-        tint:    Math.random(), // 0=white, 1=blue-white
-      };
-    });
+    // ── Stars — sparse, sharp, no glow ───────────────────────────────────
+    const S = mobile ? 220 : 400;
+    const stars: Star[] = Array.from({ length: S }, (_, i) => ({
+      x: Math.random(), y: Math.random(),
+      r: i < S * 0.82 ? Math.random() * 0.38 + 0.12 : Math.random() * 0.60 + 0.36,
+      a: i < S * 0.82 ? Math.random() * 0.28 + 0.07 : Math.random() * 0.38 + 0.30,
+    }));
 
-    // ── Helper: draw a radial ellipse (volumetric cloud blob) ─────────────
-    const ellipseBlob = (
-      cx: number, cy: number,
-      rx: number, ry: number,
-      r0: number, r1: number,
-      c0: string, c1: string,
-      angle = 0
+    // ── Draw one filament tendril (thin wispy arm from an origin) ─────────
+    // angle: direction the arm goes, len: how far, thinness: scale factor
+    const tendril = (
+      ox: number, oy: number,
+      angle: number, len: number, thinness: number,
+      col: string, peak: number
     ) => {
       ctx.save();
-      ctx.translate(cx, cy);
+      ctx.translate(ox, oy);
       ctx.rotate(angle);
-      ctx.scale(rx / ry, 1);
-      const g = ctx.createRadialGradient(0, 0, r0, 0, 0, r1);
-      g.addColorStop(0, c0);
-      g.addColorStop(1, c1);
+      ctx.scale(thinness, 1.0); // squish horizontally → thin thread
+
+      // gradient runs along the arm (Y axis after rotation)
+      const g = ctx.createRadialGradient(0, 0, 0, 0, len * 0.30, len);
+      g.addColorStop(0,    `${col}${peak})`);
+      g.addColorStop(0.25, `${col}${peak * 0.65})`);
+      g.addColorStop(0.55, `${col}${peak * 0.25})`);
+      g.addColorStop(1.0,  "rgba(0,0,0,0)");
       ctx.fillStyle = g;
+
+      // Draw in the rotated/squished space
       ctx.beginPath();
-      ctx.arc(0, 0, r1, 0, Math.PI * 2);
+      ctx.ellipse(0, len * 0.30, len * thinness, len * 0.85, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
     };
 
-    // ── Render loop ───────────────────────────────────────────────────────
-    const draw = (time: number) => {
-      if (!tRef.current) tRef.current = time;
-      const t = (time - tRef.current) * 0.001;
+    // ── Bright star-node at filament core ─────────────────────────────────
+    const starNode = (cx: number, cy: number, sz: number) => {
+      // Core white point
+      ctx.beginPath();
+      ctx.arc(cx, cy, sz, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(245, 252, 255, 0.92)";
+      ctx.fill();
 
+      // Inner cyan-white halo
+      const h1 = ctx.createRadialGradient(cx, cy, 0, cx, cy, sz * 8);
+      h1.addColorStop(0,   "rgba(200, 238, 255, 0.55)");
+      h1.addColorStop(0.3, "rgba(160, 215, 255, 0.22)");
+      h1.addColorStop(0.7, "rgba(100, 175, 235, 0.07)");
+      h1.addColorStop(1.0, "rgba(0,0,0,0)");
+      ctx.fillStyle = h1;
+      ctx.beginPath(); ctx.arc(cx, cy, sz * 8, 0, Math.PI * 2); ctx.fill();
+
+      // Outer soft bloom
+      const h2 = ctx.createRadialGradient(cx, cy, 0, cx, cy, sz * 24);
+      h2.addColorStop(0,   "rgba(140, 200, 255, 0.12)");
+      h2.addColorStop(0.5, "rgba(80, 155, 235, 0.05)");
+      h2.addColorStop(1.0, "rgba(0,0,0,0)");
+      ctx.fillStyle = h2;
+      ctx.beginPath(); ctx.arc(cx, cy, sz * 24, 0, Math.PI * 2); ctx.fill();
+    };
+
+    // ── Render ────────────────────────────────────────────────────────────
+    const draw = () => {
       mouseRef.current.x += (mouseTgt.current.x - mouseRef.current.x) * 0.025;
       mouseRef.current.y += (mouseTgt.current.y - mouseRef.current.y) * 0.025;
       const mx = mouseRef.current.x;
       const my = mouseRef.current.y;
 
-      // ── 1. VOID ────────────────────────────────────────────────────────
-      ctx.fillStyle = "#000004";
+      // ─ 1. VOID ─────────────────────────────────────────────────────────
+      ctx.fillStyle = "#000003";
       ctx.fillRect(0, 0, W, H);
 
-      // ── 2. DEEP SPACE COLOUR TEMPERATURE ─────────────────────────────
-      // Very faint warm-cold gradient to make the void feel enormous
-      {
-        ctx.save();
-        ctx.globalCompositeOperation = "screen";
-        const bg = ctx.createRadialGradient(W * 0.5, H * 0.35, 0, W * 0.5, H * 0.5, H * 0.85);
-        bg.addColorStop(0,   "rgba(8, 18, 48, 0.55)");
-        bg.addColorStop(0.5, "rgba(4, 10, 28, 0.28)");
-        bg.addColorStop(1.0, "rgba(0, 0, 0, 0)");
-        ctx.fillStyle = bg;
-        ctx.fillRect(0, 0, W, H);
-        ctx.restore();
-      }
-
-      // ── 3. STARS ───────────────────────────────────────────────────────
+      // ─ 2. STARS — sharp pinpoints only ─────────────────────────────────
       stars.forEach((s, i) => {
-        const p  = i < N * 0.5 ? 0 : i < N * 0.85 ? 1 : 2;
-        const ms = p === 0 ? 3 : p === 1 ? 9 : 18;
+        const ms = i < S * 0.6 ? 2.5 : i < S * 0.88 ? 7 : 16;
         const sx = (s.x * W + (mx - 0.5) * ms + W) % W;
-        const sy = (s.y * H + (my - 0.5) * ms * 0.7 + H) % H;
-        const col = s.tint > 0.7
-          ? `rgba(190,218,255,${s.opacity})`
-          : `rgba(255,255,255,${s.opacity})`;
+        const sy = (s.y * H + (my - 0.5) * ms * 0.75 + H) % H;
+        // Cool white or faint steel-blue
+        const col = i % 6 === 0
+          ? `rgba(180, 210, 255, ${s.a})`
+          : `rgba(255, 255, 255, ${s.a})`;
         ctx.fillStyle = col;
         ctx.beginPath();
-        ctx.arc(sx, sy, s.size, 0, Math.PI * 2);
+        ctx.arc(sx, sy, s.r, 0, Math.PI * 2);
         ctx.fill();
       });
 
-      // ── 4. VOLUMETRIC NEBULAE ─────────────────────────────────────────
+      // ─ 3. FILAMENTS ────────────────────────────────────────────────────
+      // Using screen blend so they only add light, never darken
       ctx.save();
       ctx.globalCompositeOperation = "screen";
 
-      const nd = Math.sin(t * 0.025) * 0.008; // slow drift factor
+      const filmColor = "rgba(130, 190, 245, "; // steel-blue/cyan — no purple
 
-      // ── LEFT NEBULA — upper-left quadrant, large volumetric mass ─────
+      // ── LEFT FILAMENT — node at ~(26%, 36%) ────────────────────────────
       {
-        const lx = W * (0.10 + nd) + (mx - 0.5) * 20;
-        const ly = H * (0.32 - nd * 0.5) + (my - 0.5) * 13;
+        const fx = W * 0.26 + (mx - 0.5) * 20;
+        const fy = H * 0.36 + (my - 0.5) * 13;
 
-        // Outer envelope — huge, defines the mass
-        ellipseBlob(lx, ly, 1.45, 1.0, 0, H * 0.62,
-          "rgba(22, 65, 175, 0.30)", "rgba(0, 0, 0, 0)", -0.20);
-
-        // Core cloud — brighter, smaller
-        ellipseBlob(lx + W * 0.03, ly - H * 0.04, 1.20, 1.0, 0, H * 0.38,
-          "rgba(40, 105, 220, 0.36)", "rgba(0, 0, 0, 0)", -0.15);
-
-        // Bright sub-region — gives sense of internal illumination
-        ellipseBlob(lx - W * 0.02, ly - H * 0.08, 0.70, 1.0, 0, H * 0.18,
-          "rgba(80, 155, 245, 0.28)", "rgba(0, 0, 0, 0)", -0.10);
-
-        // Top wisp extending diagonally toward center
-        ellipseBlob(lx + W * 0.10, ly - H * 0.15, 0.14, 1.0, 0, H * 0.35,
-          "rgba(140, 200, 255, 0.22)", "rgba(0, 0, 0, 0)", 0.55);
-
-        // Bottom diffuse scatter toward planet
-        ellipseBlob(lx - W * 0.05, ly + H * 0.12, 1.60, 1.0, 0, H * 0.45,
-          "rgba(15, 50, 145, 0.18)", "rgba(0, 0, 0, 0)", -0.25);
+        // Primary arm: upper-left (NW direction)
+        tendril(fx, fy, -2.30, H * 0.42, 0.055, filmColor, 0.28);
+        // Secondary arm: slightly offset NW
+        tendril(fx - W * 0.01, fy + H * 0.01, -2.48, H * 0.32, 0.038, filmColor, 0.18);
+        // Arm going upper-right (NE-ish, shorter)
+        tendril(fx, fy, -0.88, H * 0.28, 0.045, filmColor, 0.20);
+        // Arm going down-right toward center (SE)
+        tendril(fx, fy, 0.72, H * 0.36, 0.050, filmColor, 0.22);
+        // Faint branch off the main NW arm
+        tendril(fx - W * 0.04, fy - H * 0.08, -2.10, H * 0.22, 0.030, filmColor, 0.14);
+        // Diffuse background volume (wide, very faint)
+        {
+          const dg = ctx.createRadialGradient(fx, fy, 0, fx, fy, W * 0.28);
+          dg.addColorStop(0,   "rgba(60, 120, 210, 0.10)");
+          dg.addColorStop(0.4, "rgba(30, 80, 175, 0.04)");
+          dg.addColorStop(1.0, "rgba(0,0,0,0)");
+          ctx.fillStyle = dg;
+          ctx.fillRect(0, 0, W, H);
+        }
+        // Bright node
+        starNode(fx, fy, 1.4);
       }
 
-      // ── RIGHT NEBULA — upper-right quadrant, mirrored structure ──────
+      // ── RIGHT FILAMENT — node at ~(76%, 41%) ───────────────────────────
+      // Asymmetric to left — different angles, different arm weights
       {
-        const rx = W * (0.88 - nd * 0.7) + (mx - 0.5) * 14;
-        const ry = H * (0.28 + nd * 0.4) + (my - 0.5) * 10;
+        const fx = W * 0.76 + (mx - 0.5) * 15;
+        const fy = H * 0.41 + (my - 0.5) * 10;
 
-        // Outer envelope
-        ellipseBlob(rx, ry, 1.40, 1.0, 0, H * 0.58,
-          "rgba(20, 62, 168, 0.28)", "rgba(0, 0, 0, 0)", 0.18);
-
-        // Core
-        ellipseBlob(rx - W * 0.03, ry - H * 0.05, 1.15, 1.0, 0, H * 0.34,
-          "rgba(38, 100, 215, 0.34)", "rgba(0, 0, 0, 0)", 0.14);
-
-        // Bright sub-region
-        ellipseBlob(rx + W * 0.02, ry - H * 0.09, 0.65, 1.0, 0, H * 0.16,
-          "rgba(75, 150, 240, 0.26)", "rgba(0, 0, 0, 0)", 0.08);
-
-        // Top wisp
-        ellipseBlob(rx - W * 0.09, ry - H * 0.14, 0.12, 1.0, 0, H * 0.32,
-          "rgba(135, 195, 252, 0.20)", "rgba(0, 0, 0, 0)", -0.52);
-
-        // Diffuse scatter
-        ellipseBlob(rx + W * 0.04, ry + H * 0.10, 1.55, 1.0, 0, H * 0.40,
-          "rgba(12, 46, 138, 0.16)", "rgba(0, 0, 0, 0)", 0.22);
-      }
-
-      // ── ATMOSPHERIC HAZE — ties both nebulae together ─────────────────
-      // Faint upper atmosphere connecting left & right across the top
-      {
-        const hg = ctx.createLinearGradient(0, 0, 0, H * 0.50);
-        hg.addColorStop(0,    "rgba(8, 22, 80, 0.22)");
-        hg.addColorStop(0.45, "rgba(4, 12, 45, 0.10)");
-        hg.addColorStop(1.0,  "rgba(0, 0, 0, 0)");
-        ctx.fillStyle = hg;
-        ctx.fillRect(0, 0, W, H * 0.50);
+        // Primary arm: upper-right (NE)
+        tendril(fx, fy, -0.78, H * 0.38, 0.050, filmColor, 0.26);
+        // Secondary arm: going down-left (SW toward center-bottom)
+        tendril(fx, fy, 2.20, H * 0.30, 0.042, filmColor, 0.20);
+        // Arm going up-left (NW, shorter)
+        tendril(fx, fy, -2.55, H * 0.24, 0.038, filmColor, 0.16);
+        // Short arm going right (E)
+        tendril(fx, fy, 0.12, H * 0.20, 0.035, filmColor, 0.14);
+        // Faint branch off NE arm
+        tendril(fx + W * 0.04, fy - H * 0.06, -0.55, H * 0.18, 0.028, filmColor, 0.12);
+        // Diffuse background volume
+        {
+          const dg = ctx.createRadialGradient(fx, fy, 0, fx, fy, W * 0.24);
+          dg.addColorStop(0,   "rgba(55, 115, 205, 0.09)");
+          dg.addColorStop(0.4, "rgba(28, 75, 168, 0.035)");
+          dg.addColorStop(1.0, "rgba(0,0,0,0)");
+          ctx.fillStyle = dg;
+          ctx.fillRect(0, 0, W, H);
+        }
+        // Bright node (slightly smaller than left — asymmetry)
+        starNode(fx, fy, 1.15);
       }
 
       ctx.restore();
 
-      // ── 5. PLANET BODY ────────────────────────────────────────────────
+      // ─ 4. PLANET BODY ─────────────────────────────────────────────────
+      // Center precisely tuned: arc enters left edge at ~0.50H,
+      // exits bottom at ~0.50W — matches reference composition
       {
-        const pMX = (mx - 0.5) * 14;
-        const pMY = (my - 0.5) * 9;
-        const pCX = W  * (mobile ? -0.42 : -0.36) + pMX;
-        const pCY = H  * (mobile ? 1.45  : 1.42)  + pMY;
-        const pR  = Math.max(W, H) * (mobile ? 0.82 : 0.76);
+        const pMX = (mx - 0.5) * 10;
+        const pMY = (my - 0.5) * 7;
+        const pCX = W * (mobile ? 0.04  : 0.00) + pMX;  // at or near left edge
+        const pCY = H * (mobile ? 1.58  : 1.55) + pMY;  // well below viewport
+        const pR  = H * (mobile ? 1.08  : 1.05);         // arc geometry per reference
 
-        // Black planet body — occludes stars completely
+        // Dark planet body
         ctx.save();
         ctx.beginPath();
         ctx.arc(pCX, pCY, pR, 0, Math.PI * 2);
         const pg = ctx.createRadialGradient(pCX, pCY, 0, pCX, pCY, pR);
-        pg.addColorStop(0,   "rgba(5, 9, 20, 0.99)");
-        pg.addColorStop(0.7, "rgba(2, 4, 9, 1.0)");
-        pg.addColorStop(1.0, "rgba(0, 1, 3, 1.0)");
+        pg.addColorStop(0,    "rgba(6, 10, 22, 0.99)");
+        pg.addColorStop(0.65, "rgba(2, 4, 9, 1.0)");
+        pg.addColorStop(1.0,  "rgba(0, 1, 3, 1.0)");
         ctx.fillStyle = pg;
         ctx.fill();
         ctx.restore();
 
-        // ── Atmospheric rim glow — 5-layer build-up ──────────────────
+        // ── Atmospheric rim — thin, elegant, cyan-white ────────────────
         ctx.save();
         ctx.globalCompositeOperation = "screen";
 
-        // Layer A: Wide outer atmosphere scatter
-        const a1 = ctx.createRadialGradient(pCX, pCY, pR * 0.84, pCX, pCY, pR * 1.14);
-        a1.addColorStop(0,    "rgba(0, 0, 0, 0)");
-        a1.addColorStop(0.30, "rgba(8, 42, 140, 0.22)");
-        a1.addColorStop(0.58, "rgba(28, 110, 230, 0.38)");
-        a1.addColorStop(0.78, "rgba(85, 185, 255, 0.30)");
-        a1.addColorStop(0.93, "rgba(150, 225, 255, 0.14)");
-        a1.addColorStop(1.0,  "rgba(0, 0, 0, 0)");
-        ctx.fillStyle = a1;
+        // Outer atmospheric scatter (wider, softer)
+        const atm = ctx.createRadialGradient(pCX, pCY, pR * 0.91, pCX, pCY, pR * 1.09);
+        atm.addColorStop(0,    "rgba(0,0,0,0)");
+        atm.addColorStop(0.30, "rgba(8, 42, 145, 0.20)");
+        atm.addColorStop(0.58, "rgba(28, 115, 235, 0.36)");
+        atm.addColorStop(0.78, "rgba(90, 190, 255, 0.28)");
+        atm.addColorStop(0.94, "rgba(155, 228, 255, 0.12)");
+        atm.addColorStop(1.0,  "rgba(0,0,0,0)");
+        ctx.fillStyle = atm;
         ctx.fillRect(0, 0, W, H);
 
-        // Layer B: Sharp limb edge
-        const a2 = ctx.createRadialGradient(pCX, pCY, pR * 0.93, pCX, pCY, pR * 1.03);
-        a2.addColorStop(0,   "rgba(0, 0, 0, 0)");
-        a2.addColorStop(0.4, "rgba(165, 225, 255, 0.36)");
-        a2.addColorStop(0.75,"rgba(210, 242, 255, 0.24)");
-        a2.addColorStop(1.0, "rgba(0, 0, 0, 0)");
-        ctx.fillStyle = a2;
+        // Sharp inner limb (the bright white-cyan edge)
+        const limb = ctx.createRadialGradient(pCX, pCY, pR * 0.955, pCX, pCY, pR * 1.018);
+        limb.addColorStop(0,    "rgba(0,0,0,0)");
+        limb.addColorStop(0.40, "rgba(175, 228, 255, 0.38)");
+        limb.addColorStop(0.72, "rgba(218, 245, 255, 0.28)");
+        limb.addColorStop(1.0,  "rgba(0,0,0,0)");
+        ctx.fillStyle = limb;
         ctx.fillRect(0, 0, W, H);
 
-        // Layer C: Terminator halo (thin bright ring)
-        const a3 = ctx.createRadialGradient(pCX, pCY, pR * 0.97, pCX, pCY, pR * 1.006);
-        a3.addColorStop(0,   "rgba(0, 0, 0, 0)");
-        a3.addColorStop(0.5, "rgba(235, 250, 255, 0.36)");
-        a3.addColorStop(1.0, "rgba(0, 0, 0, 0)");
-        ctx.fillStyle = a3;
-        ctx.fillRect(0, 0, W, H);
-
-        // Layer D: Backlit sun-scatter spot (upper-right arc is where sun is)
-        const bx = pCX + pR * 0.44;
-        const by = pCY - pR * 0.50;
-        const a4 = ctx.createRadialGradient(bx, by, 0, bx, by, pR * 0.40);
-        a4.addColorStop(0,   "rgba(215, 242, 255, 0.28)");
-        a4.addColorStop(0.4, "rgba(140, 205, 255, 0.15)");
-        a4.addColorStop(1.0, "rgba(0, 0, 0, 0)");
-        ctx.fillStyle = a4;
-        ctx.fillRect(0, 0, W, H);
-
-        // Layer E: Atmospheric glow UP from horizon, illuminates bottom of scene
-        // This creates the sense that the planet is a light source
-        const hx = pCX + pR * 0.32;
-        const hy = pCY - pR * 0.62;
-        const a5 = ctx.createRadialGradient(hx, hy, 0, hx, hy, pR * 0.75);
-        a5.addColorStop(0,   "rgba(55, 140, 255, 0.12)");
-        a5.addColorStop(0.4, "rgba(20, 80, 200, 0.06)");
-        a5.addColorStop(1.0, "rgba(0, 0, 0, 0)");
-        ctx.fillStyle = a5;
+        // Terminator ring — very thin, brightest element of planet
+        const term = ctx.createRadialGradient(pCX, pCY, pR * 0.978, pCX, pCY, pR * 1.004);
+        term.addColorStop(0,   "rgba(0,0,0,0)");
+        term.addColorStop(0.5, "rgba(238, 252, 255, 0.42)");
+        term.addColorStop(1.0, "rgba(0,0,0,0)");
+        ctx.fillStyle = term;
         ctx.fillRect(0, 0, W, H);
 
         ctx.restore();
       }
 
-      // ── 6. GRAIN ──────────────────────────────────────────────────────
+      // ─ 5. GRAIN ────────────────────────────────────────────────────────
       if (grain) {
         ctx.save();
-        ctx.globalAlpha = 0.032;
+        ctx.globalAlpha = 0.028;
         ctx.globalCompositeOperation = "overlay";
         ctx.fillStyle = grain;
         ctx.fillRect(0, 0, W, H);
         ctx.restore();
       }
 
-      // ── 7. VIGNETTE — strong at corners, completely clear at center ───
-      {
-        // Top-left corner darkness (nebula is there but vignette anchors it)
-        const vtl = ctx.createRadialGradient(0, 0, 0, 0, 0, W * 0.55);
-        vtl.addColorStop(0,   "rgba(0,0,0,0.30)");
-        vtl.addColorStop(1.0, "rgba(0,0,0,0)");
-        ctx.fillStyle = vtl;
+      // ─ 6. VIGNETTE — corners only, NEVER center ────────────────────────
+      // Corner darkening (keeps filaments from being too bright at edges)
+      const corners: [number, number][] = [[0, 0], [W, 0], [W, H], [0, H]];
+      corners.forEach(([cx, cy]) => {
+        const cv = ctx.createRadialGradient(cx, cy, 0, cx, cy, W * 0.48);
+        cv.addColorStop(0,   "rgba(0,0,0,0.38)");
+        cv.addColorStop(0.5, "rgba(0,0,0,0.10)");
+        cv.addColorStop(1.0, "rgba(0,0,0,0)");
+        ctx.fillStyle = cv;
         ctx.fillRect(0, 0, W, H);
+      });
 
-        // Top-right corner
-        const vtr = ctx.createRadialGradient(W, 0, 0, W, 0, W * 0.55);
-        vtr.addColorStop(0,   "rgba(0,0,0,0.28)");
-        vtr.addColorStop(1.0, "rgba(0,0,0,0)");
-        ctx.fillStyle = vtr;
-        ctx.fillRect(0, 0, W, H);
+      // Center preservation — explicit: no darkening in hero text zone
+      // (Just a very mild overall radial from extreme edges)
+      const ve = ctx.createRadialGradient(W*0.5, H*0.45, H*0.25, W*0.5, H*0.48, H*0.95);
+      ve.addColorStop(0,   "rgba(0,0,0,0)");
+      ve.addColorStop(0.8, "rgba(0,0,0,0.08)");
+      ve.addColorStop(1.0, "rgba(0,0,0,0.45)");
+      ctx.fillStyle = ve;
+      ctx.fillRect(0, 0, W, H);
 
-        // Central radial — keeps centre black
-        const vc = ctx.createRadialGradient(
-          W * 0.50, H * 0.44, H * 0.10,
-          W * 0.50, H * 0.48, H * 0.92
-        );
-        vc.addColorStop(0,    "rgba(0,0,0,0)");
-        vc.addColorStop(0.68, "rgba(0,0,0,0.10)");
-        vc.addColorStop(1.0,  "rgba(0,0,0,0.55)");
-        ctx.fillStyle = vc;
-        ctx.fillRect(0, 0, W, H);
-      }
-
-      animRef.current = requestAnimationFrame(draw);
+      rafRef.current = requestAnimationFrame(draw);
     };
 
-    animRef.current = requestAnimationFrame(draw);
+    rafRef.current = requestAnimationFrame(draw);
     return () => {
-      if (animRef.current) cancelAnimationFrame(animRef.current);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
       window.removeEventListener("resize", resize);
     };
   }, [ready]);
 
-  if (!ready) return <div className="fixed inset-0 bg-[#000004] pointer-events-none -z-40" />;
+  if (!ready) return <div className="fixed inset-0 bg-[#000003] pointer-events-none -z-40" />;
 
   return (
     <canvas
