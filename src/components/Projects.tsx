@@ -52,19 +52,19 @@ export default function Projects() {
   if (slug) {
     const project = PROJECTS.find((p) => p.id === slug);
 
-    if (!project) {
+    if (!project || project.id !== "eve") {
       return (
         <div className="py-24 text-center space-y-6">
-          <h2 className="text-3xl font-bold text-white">Project Not Found</h2>
+          <h2 className="text-3xl font-bold text-white">Case Study Not Available</h2>
           <p className="text-gray-400 text-sm max-w-md mx-auto">
-            The project case study you requested could not be found.
+            This project does not have a dedicated case study page.
           </p>
           <Link
             to="/"
             className="inline-flex items-center space-x-2 px-4 py-2 bg-white text-black hover:bg-gray-150 text-xs font-bold rounded-lg transition-all"
           >
             <ArrowLeft className="h-4 w-4" />
-            <span>Back to Portfolio</span>
+            <span>Back to Showcase</span>
           </Link>
         </div>
       );
@@ -242,21 +242,11 @@ function ShowcaseGrid() {
 
                   <div className="pt-6 flex items-center justify-between border-t border-white/5 mt-4">
                     <div className="flex flex-wrap gap-1">
-                      {fridayProj.techStack.slice(0, 3).map(tech => (
+                      {fridayProj.techStack.map(tech => (
                         <span key={tech} className="px-1.5 py-0.5 bg-white/[0.02] text-[8px] text-gray-450 font-mono border border-white/5 rounded">
                           {tech}
                         </span>
                       ))}
-                    </div>
-
-                    <div className="flex items-center space-x-2 shrink-0">
-                      <Link
-                        to={`/projects/${fridayProj.id}`}
-                        className="inline-flex items-center justify-center space-x-1 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white text-[11px] font-bold transition-all cursor-pointer"
-                      >
-                        <span>Study</span>
-                        <ArrowUpRight className="h-3 w-3" />
-                      </Link>
                     </div>
                   </div>
                 </div>
@@ -322,10 +312,10 @@ function ShowcaseGrid() {
 
                     <div className="flex items-center space-x-2 shrink-0">
                       <Link
-                        to={`/projects/${nasaProj.id}`}
+                        to="/certificates/nasa-space-apps"
                         className="inline-flex items-center justify-center space-x-1 px-3 py-1.5 rounded-lg bg-violet-500/10 hover:bg-violet-500/20 text-violet-300 text-[11px] font-bold transition-all cursor-pointer border border-violet-500/20"
                       >
-                        <span>Review</span>
+                        <span>View Certificate</span>
                         <ArrowUpRight className="h-3 w-3" />
                       </Link>
                     </div>

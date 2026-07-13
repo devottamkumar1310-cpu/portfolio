@@ -59,6 +59,7 @@ export interface TimelineEvent {
 }
 
 export interface Certificate {
+  id: string;
   title: string;
   organization: string;
   image: string;
@@ -66,6 +67,9 @@ export interface Certificate {
   year: string;
   subtitle?: string;
   description?: string;
+  skillsDemonstrated?: string[];
+  credentialId?: string;
+  verificationUrl?: string;
 }
 
 export interface Achievement {

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useParams, Link } from "react-router-dom";
 import { CERTIFICATES } from "../data";
 import { Certificate } from "../types";
 import { 
@@ -9,13 +10,78 @@ import {
   ZoomIn, 
   ZoomOut,
   Calendar,
-  Building
+  Building,
+  ArrowLeft,
+  ExternalLink,
+  ShieldCheck
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 export default function Certificates() {
+  const { id } = useParams<{ id: string }>();
   const [activePreviewCert, setActivePreviewCert] = useState<Certificate | null>(null);
 
+  // If a specific certificate ID is provided, render the dedicated detail page
+  if (id) {
+    const cert = CERTIFICATES.find((c) => c.id === id);
+
+    if (!cert) {
+      return (
+        <div className="py-24 text-center space-y-6">
+          <h2 className="text-3xl font-bold text-white">Certificate Not Found</h2>
+          <p className="text-gray-400 text-sm max-w-md mx-auto">
+            The certificate details you requested could not be found.
+          </p>
+          <Link
+            to="/certificates"
+            className="inline-flex items-center space-x-2 px-4 py-2 bg-white text-black hover:bg-gray-150 text-xs font-bold rounded-lg transition-all"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span>Back to Certificates</span>
+          </Link>
+        </div>
+      );
+    }
+
+    return (
+      <>
+        <CertificateDetailView certificate={cert} onPreview={() => setActivePreviewCert(cert)} />
+        <AnimatePresence>
+          {activePreviewCert && (
+            <CertificateLightbox 
+              certificate={activePreviewCert} 
+              onClose={() => setActivePreviewCert(null)} 
+            />
+          )}
+        </AnimatePresence>
+      </>
+    );
+  }
+
+  // Otherwise, render the standard Certificates list view
+  return (
+    <>
+      <CertificatesListView onPreview={(cert) => setActivePreviewCert(cert)} />
+      <AnimatePresence>
+        {activePreviewCert && (
+          <CertificateLightbox 
+            certificate={activePreviewCert} 
+            onClose={() => setActivePreviewCert(null)} 
+          />
+        )}
+      </AnimatePresence>
+    </>
+  );
+}
+
+// --------------------------------------------------
+// VIEW: CERTIFICATES LIST
+// --------------------------------------------------
+interface CertificatesListViewProps {
+  onPreview: (cert: Certificate) => void;
+}
+
+function CertificatesListView({ onPreview }: CertificatesListViewProps) {
   return (
     <section id="certificates" className="py-16 border-t border-white/5 print:hidden text-left relative z-10">
       <div className="max-w-4xl mx-auto space-y-12">
@@ -47,23 +113,13 @@ export default function Certificates() {
               <CertificateCard 
                 key={index} 
                 certificate={cert} 
-                onPreview={() => setActivePreviewCert(cert)} 
+                onPreview={() => onPreview(cert)} 
               />
             ))}
           </div>
         )}
 
       </div>
-
-      {/* Fullscreen Lightbox Modal */}
-      <AnimatePresence>
-        {activePreviewCert && (
-          <CertificateLightbox 
-            certificate={activePreviewCert} 
-            onClose={() => setActivePreviewCert(null)} 
-          />
-        )}
-      </AnimatePresence>
     </section>
   );
 }
@@ -119,9 +175,12 @@ export function CertificateCard({ certificate, onPreview }: CertificateCardProps
           </div>
 
           <div>
-            <h3 className="text-lg font-bold text-white tracking-tight group-hover:text-cyan-400 transition-colors duration-250">
+            <Link
+              to={`/certificates/${certificate.id}`}
+              className="text-lg font-bold text-white tracking-tight group-hover:text-cyan-400 hover:underline transition-colors duration-250 block"
+            >
               {certificate.title}
-            </h3>
+            </Link>
             {certificate.subtitle && (
               <p className="text-xs text-cyan-200/70 font-medium font-sans mt-0.5">
                 {certificate.subtitle}
@@ -144,7 +203,7 @@ export function CertificateCard({ certificate, onPreview }: CertificateCardProps
           className="flex-1 inline-flex items-center justify-center space-x-1.5 px-4 py-2.5 rounded-xl bg-white text-black hover:bg-gray-150 text-xs font-bold transition-all cursor-pointer"
         >
           <Eye className="h-4 w-4" />
-          <span>Preview</span>
+          <span>Preview Certificate</span>
         </button>
 
         <a
@@ -158,6 +217,180 @@ export function CertificateCard({ certificate, onPreview }: CertificateCardProps
         </a>
       </div>
     </motion.div>
+  );
+}
+
+// --------------------------------------------------
+// VIEW: CERTIFICATE DETAILS
+// --------------------------------------------------
+interface CertificateDetailViewProps {
+  certificate: Certificate;
+  onPreview: () => void;
+}
+
+function CertificateDetailView({ certificate, onPreview }: CertificateDetailViewProps) {
+  return (
+    <div className="py-8 space-y-10 text-left relative z-10">
+      
+      {/* Back button */}
+      <div>
+        <Link
+          to="/certificates"
+          className="inline-flex items-center space-x-2 text-xs text-gray-400 hover:text-white transition-colors cursor-pointer border border-white/5 bg-white/[0.02] px-3.5 py-1.5 rounded-lg font-bold"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          <span>Back to Certificates</span>
+        </Link>
+      </div>
+
+      {/* Main Certificate Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        
+        {/* Left Column: Landscape certificate preview */}
+        <div className="lg:col-span-7 space-y-3">
+          <span className="text-[10px] font-mono text-gray-500 uppercase tracking-widest font-bold block">
+            Certificate Preview (Click to Zoom)
+          </span>
+          <div 
+            onClick={onPreview}
+            className="rounded-2xl border border-white/10 bg-black/40 overflow-hidden aspect-[1.414] shadow-2xl relative group cursor-zoom-in"
+          >
+            <img 
+              src={certificate.image} 
+              alt={certificate.title} 
+              className="w-full h-full object-contain group-hover:scale-[1.01] transition-transform duration-300"
+            />
+            {/* Hover preview text */}
+            <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[1px]">
+              <span className="px-4 py-2 rounded-lg bg-black/75 border border-white/10 text-xs font-bold text-white flex items-center space-x-1.5">
+                <Eye className="h-4 w-4 text-cyan-400" />
+                <span>Zoom & Preview Certificate</span>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column: Details & Metadata */}
+        <div className="lg:col-span-5 space-y-6">
+          
+          {/* Header titles */}
+          <div className="space-y-1.5">
+            <span className="text-[10px] font-mono text-cyan-400 uppercase tracking-widest font-bold block">
+              / Verified Achievement
+            </span>
+            <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight leading-tight">
+              {certificate.title}
+            </h2>
+            {certificate.subtitle && (
+              <p className="text-sm text-cyan-200/70 font-medium font-sans">
+                {certificate.subtitle}
+              </p>
+            )}
+          </div>
+
+          {/* Quick info card */}
+          <div className="p-5 rounded-2xl bg-white/[0.012] border border-white/5 space-y-4">
+            <div className="grid grid-cols-2 gap-4 text-xs font-sans">
+              <div>
+                <span className="text-[9px] font-mono text-gray-500 uppercase font-bold block">Organization</span>
+                <span className="text-gray-250 font-medium">{certificate.organization}</span>
+              </div>
+              <div>
+                <span className="text-[9px] font-mono text-gray-500 uppercase font-bold block">Date Issued</span>
+                <span className="text-gray-250 font-medium">{certificate.year}</span>
+              </div>
+              <div>
+                <span className="text-[9px] font-mono text-gray-500 uppercase font-bold block">Status</span>
+                <span className="text-emerald-400 font-semibold flex items-center space-x-1">
+                  <ShieldCheck className="h-3 w-3 inline" />
+                  <span>Verified Plaque</span>
+                </span>
+              </div>
+            </div>
+
+            {certificate.credentialId && (
+              <div className="pt-3 border-t border-white/5 text-xs">
+                <span className="text-[9px] font-mono text-gray-500 uppercase font-bold block">Credential ID</span>
+                <code className="text-gray-300 font-mono tracking-tight bg-white/5 px-2 py-0.5 rounded text-[11px] block mt-1 w-fit">
+                  {certificate.credentialId}
+                </code>
+              </div>
+            )}
+          </div>
+
+          {/* Description */}
+          {certificate.description && (
+            <div className="space-y-1.5">
+              <span className="text-[9px] font-mono text-gray-500 uppercase tracking-widest font-bold block">
+                Description
+              </span>
+              <p className="text-xs sm:text-sm text-gray-350 leading-relaxed font-sans">
+                {certificate.description}
+              </p>
+            </div>
+          )}
+
+          {/* Skills Demonstrated */}
+          {certificate.skillsDemonstrated && (
+            <div className="space-y-2">
+              <span className="text-[9px] font-mono text-gray-500 uppercase tracking-widest font-bold block">
+                Skills Demonstrated
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {certificate.skillsDemonstrated.map((skill: string) => (
+                  <span 
+                    key={skill} 
+                    className="px-2 py-1 rounded bg-white/[0.02] border border-white/5 text-[10px] text-gray-300 font-mono"
+                  >
+                    {skill}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Dedicated Actions */}
+          <div className="pt-4 border-t border-white/5 space-y-3">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                onClick={onPreview}
+                className="flex-1 inline-flex items-center justify-center space-x-2 px-5 py-3 rounded-xl bg-white text-black hover:bg-gray-150 font-bold text-xs transition-all shadow-md active:scale-98 cursor-pointer"
+              >
+                <span>View Full Certificate</span>
+                <ExternalLink className="h-3.5 w-3.5" />
+              </button>
+
+              <a
+                href={certificate.pdf}
+                target="_blank"
+                rel="noreferrer"
+                className="flex-1 inline-flex items-center justify-center space-x-2 px-5 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-gray-350 border border-white/10 font-bold text-xs transition-all cursor-pointer"
+              >
+                <FileDown className="h-3.5 w-3.5" />
+                <span>Download PDF</span>
+              </a>
+            </div>
+            
+            {certificate.verificationUrl && (
+              <div className="text-center pt-2">
+                <a 
+                  href={certificate.verificationUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center space-x-1 text-[10px] text-gray-500 hover:text-cyan-400 font-mono transition-colors"
+                >
+                  <span>Verify Credential Authenticity</span>
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
+            )}
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
   );
 }
 

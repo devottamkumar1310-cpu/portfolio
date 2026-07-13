@@ -90,6 +90,7 @@ function AppContent() {
 
                 {/* Nav views */}
                 <Route path="/certificates" element={<Certificates />} />
+                <Route path="/certificates/:id" element={<Certificates />} />
                 <Route path="/resume" element={<Resume />} />
                 <Route path="/contact" element={<Contact />} />
                 <Route path="/admin" element={<AdminDashboard />} />
