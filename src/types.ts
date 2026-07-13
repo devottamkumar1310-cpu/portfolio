@@ -34,6 +34,16 @@ export interface Project {
   learnings?: string;
   githubLink?: string;
   liveLink?: string;
+
+  // New Case Study structured fields
+  motivation?: string;
+  keyCapabilities?: string[];
+  engineeringHighlights?: string[];
+  techStackBreakdown?: { category: string; technologies: string[] }[];
+  technicalChallenges?: { title: string; problem: string; solution: string }[];
+  results?: string[];
+  lessonsLearned?: string;
+  screenshots?: string[];
 }
 
 export interface SkillCategory {
@@ -49,14 +59,13 @@ export interface TimelineEvent {
 }
 
 export interface Certificate {
-  id: string;
   title: string;
-  issuer: string;
-  recognition: string;
-  date: string;
-  category: string;
-  description: string;
-  fileUrl?: string;
+  organization: string;
+  image: string;
+  pdf: string;
+  year: string;
+  subtitle?: string;
+  description?: string;
 }
 
 export interface Achievement {

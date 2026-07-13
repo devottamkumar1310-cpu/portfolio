@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
+import { BrowserRouter, Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
-import { PROJECTS } from "./data";
 
 // Sub-components
 import CosmicBackground from "./components/CosmicBackground";
@@ -18,49 +18,34 @@ import AdminDashboard from "./components/admin/AdminDashboard";
 
 export type TabId = "home" | "projects" | "certificates" | "resume" | "contact" | "admin";
 
-export default function App() {
-  const [activeTab, setActiveTab] = useState<TabId>("home");
-  const [activeProjectSlug, setActiveProjectSlug] = useState<string | null>(null);
-
-  // Sync state with location hash
-  useEffect(() => {
-    const handleHashChange = () => {
-      const hash = window.location.hash || "#home";
-      const cleanHash = hash.replace("#", "");
-      
-      if (cleanHash.startsWith("projects/")) {
-        const slug = cleanHash.split("/")[1];
-        // Validate slug against project list dynamically
-        const projectExists = PROJECTS.some(p => p.id === slug);
-        if (projectExists) {
-          setActiveTab("projects");
-          setActiveProjectSlug(slug);
-        } else {
-          // If project slug doesn't exist, redirect to projects list
-          window.location.hash = "#projects";
-        }
-      } else {
-        const validTabs: TabId[] = ["home", "projects", "certificates", "resume", "contact", "admin"];
-        if (validTabs.includes(cleanHash as TabId)) {
-          setActiveTab(cleanHash as TabId);
-          setActiveProjectSlug(null);
-        } else {
-          window.location.hash = "#home";
-        }
-      }
-    };
-
-    // Initial check on mount
-    handleHashChange();
-
-    window.addEventListener("hashchange", handleHashChange);
-    return () => window.removeEventListener("hashchange", handleHashChange);
-  }, []);
+function AppContent() {
+  const location = useLocation();
+  const navigate = useNavigate();
 
   // Scroll to head on route changes
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
-  }, [activeTab, activeProjectSlug]);
+  }, [location.pathname]);
+
+  // Sync active tab for Header highlight based on pathname
+  const getActiveTab = (): TabId => {
+    const path = location.pathname;
+    if (path === "/" || path === "") return "home";
+    if (path.startsWith("/projects")) return "projects";
+    if (path.startsWith("/certificates")) return "certificates";
+    if (path.startsWith("/resume")) return "resume";
+    if (path.startsWith("/contact")) return "contact";
+    if (path.startsWith("/admin")) return "admin";
+    return "home";
+  };
+
+  const handleTabChange = (tab: TabId) => {
+    if (tab === "home") {
+      navigate("/");
+    } else {
+      navigate(`/${tab}`);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-transparent text-[#e5e7eb] font-sans relative selection:bg-cyan-500/20 selection:text-cyan-200 overflow-x-hidden flex flex-col justify-between print:bg-white print:text-black">
@@ -71,43 +56,60 @@ export default function App() {
       <div>
         {/* Core Header Navigation */}
         <Header 
-          currentTab={activeTab} 
-          onTabChange={(tab: TabId) => { window.location.hash = `#${tab}`; }} 
+          currentTab={getActiveTab()} 
+          onTabChange={handleTabChange} 
         />
 
         {/* Navigation Stage Content Container */}
         <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 print:p-0 print:max-w-none">
           <AnimatePresence mode="wait">
             <motion.div
-              key={activeTab + (activeProjectSlug ? `-${activeProjectSlug}` : "")}
+              key={location.pathname}
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -12 }}
               transition={{ duration: 0.35, ease: "easeInOut" }}
               className="print:opacity-100 print:transform-none"
             >
-              {activeTab === "home" && (
-                <div className="space-y-6">
-                  <Hero onTabChange={(tab: "projects" | "resume") => { window.location.hash = `#${tab}`; }} />
-                  <Projects activeProjectSlug={activeProjectSlug} />
-                  <CurrentlyBuilding />
-                  <Timeline />
-                  <Skills />
-                  <Certificates />
-                  <Contact />
-                </div>
-              )}
+              <Routes>
+                <Route path="/" element={
+                  <div className="space-y-6">
+                    <Hero onTabChange={(tab: "projects" | "resume") => handleTabChange(tab)} />
+                    <Projects />
+                    <CurrentlyBuilding />
+                    <Timeline />
+                    <Skills />
+                    <Certificates />
+                    <Contact />
+                  </div>
+                } />
 
-              {activeTab === "projects" && <Projects activeProjectSlug={activeProjectSlug} />}
+                {/* Dedicated Projects Showcase & Dynamic Case Studies */}
+                <Route path="/projects" element={<Projects />} />
+                <Route path="/projects/:slug" element={<Projects />} />
 
-              {activeTab === "certificates" && <Certificates />}
+                {/* Nav views */}
+                <Route path="/certificates" element={<Certificates />} />
+                <Route path="/resume" element={<Resume />} />
+                <Route path="/contact" element={<Contact />} />
+                <Route path="/admin" element={<AdminDashboard />} />
 
-              {activeTab === "resume" && <Resume />}
-
-              {activeTab === "contact" && <Contact />}
-
-              {activeTab === "admin" && <AdminDashboard />}
-
+                {/* Wildcard 404 handler */}
+                <Route path="*" element={
+                  <div className="py-20 text-center space-y-6">
+                    <h2 className="text-3xl font-semibold text-white">404 - Not Found</h2>
+                    <p className="text-gray-400 text-sm max-w-md mx-auto">
+                      The page you are looking for does not exist or has been moved.
+                    </p>
+                    <button
+                      onClick={() => navigate("/")}
+                      className="px-4 py-2 bg-white text-black hover:bg-gray-100 text-xs font-bold rounded-lg transition-colors cursor-pointer"
+                    >
+                      Return Home
+                    </button>
+                  </div>
+                } />
+              </Routes>
             </motion.div>
           </AnimatePresence>
         </main>
@@ -120,3 +122,10 @@ export default function App() {
   );
 }
 
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AppContent />
+    </BrowserRouter>
+  );
+}

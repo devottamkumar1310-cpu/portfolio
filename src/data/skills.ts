@@ -2,6 +2,10 @@ import { SkillCategory } from "../types";
 
 export const SKILL_CATEGORIES: SkillCategory[] = [
   {
+    title: "Languages",
+    skills: ["Java", "JavaScript", "Python"]
+  },
+  {
     title: "Backend Systems",
     skills: ["Python", "FastAPI", "Node.js", "Express.js", "PostgreSQL"]
   },
@@ -19,6 +23,6 @@ export const SKILL_CATEGORIES: SkillCategory[] = [
   },
   {
     title: "Developer Tools",
-    skills: ["Git", "GitHub", "Linux"]
+    skills: ["Git", "GitHub"]
   }
 ];

@@ -2,14 +2,13 @@ import { SKILL_CATEGORIES } from "../data";
 import { Code2, Server, Database, Layers, Brain, Terminal } from "lucide-react";
 
 export default function Skills() {
-  // Icon mapper helper
   const getCategoryIcon = (title: string) => {
     const t = title.toLowerCase();
-    if (t.includes("programming")) return <Code2 className="h-4.5 w-4.5 text-cyan-400" />;
+    if (t.includes("languages") || t.includes("programming")) return <Code2 className="h-4.5 w-4.5 text-cyan-400" />;
     if (t.includes("backend")) return <Server className="h-4.5 w-4.5 text-blue-400" />;
-    if (t.includes("databases")) return <Database className="h-4.5 w-4.5 text-emerald-400" />;
-    if (t.includes("frontend")) return <Layers className="h-4.5 w-4.5 text-purple-400" />;
-    if (t.includes("computer science") || t.includes("cs")) return <Brain className="h-4.5 w-4.5 text-violet-400" />;
+    if (t.includes("databases") || t.includes("data")) return <Database className="h-4.5 w-4.5 text-emerald-400" />;
+    if (t.includes("frontend") || t.includes("cloud")) return <Layers className="h-4.5 w-4.5 text-purple-400" />;
+    if (t.includes("computer science") || t.includes("cs") || t.includes("ai")) return <Brain className="h-4.5 w-4.5 text-violet-400" />;
     return <Terminal className="h-4.5 w-4.5 text-orange-400" />;
   };
 
