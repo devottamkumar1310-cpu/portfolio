@@ -3,6 +3,7 @@ import path from "path";
 import dotenv from "dotenv";
 import { GoogleGenAI } from "@google/genai";
 import { createServer as createViteServer } from "vite";
+import { Resend } from "resend";
 
 dotenv.config();
 
@@ -126,6 +127,103 @@ app.post("/api/chat", async (req, res) => {
   } catch (error: any) {
     console.error("Gemini API error in server.ts:", error);
     res.status(500).json({ error: "Failed to communicate with agentic core", details: error.message });
+  }
+});
+
+// Rate limiting and duplicate prevention state
+const submissionIpCache = new Map<string, number>();
+const RATE_LIMIT_COOLDOWN = 45 * 1000; // 45 seconds cooldown
+
+// Auto reply feature flag
+const AUTO_REPLY_ENABLED = process.env.AUTO_REPLY_ENABLED === "true";
+
+app.post("/api/contact", async (req, res) => {
+  const { name, email, company, message } = req.body;
+
+  // 1. IP rate limiting
+  const ip = (req.ip || req.headers["x-forwarded-for"] || "unknown").toString();
+  const now = Date.now();
+  if (submissionIpCache.has(ip)) {
+    const lastTime = submissionIpCache.get(ip)!;
+    if (now - lastTime < RATE_LIMIT_COOLDOWN) {
+      res.status(429).json({ error: "Too many requests. Please wait a moment before sending another message." });
+      return;
+    }
+  }
+
+  // 2. Validate required fields
+  if (!name || !email || !message) {
+    res.status(400).json({ error: "Missing required fields: Name, Email, and Message are required." });
+    return;
+  }
+
+  // 3. Email format validation
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    res.status(400).json({ error: "Invalid email format." });
+    return;
+  }
+
+  // 4. Sanitize inputs to prevent basic scripting injections
+  const sanitize = (val: string) => {
+    if (!val) return "";
+    return val.replace(/<[^>]*>/g, "").trim();
+  };
+
+  const cleanName = sanitize(name);
+  const cleanEmail = sanitize(email);
+  const cleanCompany = sanitize(company || "");
+  const cleanMessage = sanitize(message);
+
+  // 5. Verify Resend SDK readiness
+  if (!process.env.RESEND_API_KEY) {
+    console.warn("[Resend Warning] RESEND_API_KEY is not defined in the environment. Submission logged below but outbound email failed.");
+    console.log(`[Offline Submission Record]\nName: ${cleanName}\nEmail: ${cleanEmail}\nCompany: ${cleanCompany}\nMessage: ${cleanMessage}`);
+    res.status(503).json({ error: "Outbound email service is not configured on this host." });
+    return;
+  }
+
+  try {
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    const destinationEmail = process.env.CONTACT_EMAIL || "devottamkumar7@gmail.com";
+
+    // 6. Send Notification Email
+    const response = await resend.emails.send({
+      from: "onboarding@resend.dev",
+      to: destinationEmail,
+      subject: "New Portfolio Contact Submission",
+      text: `----------------------------------\nName: ${cleanName}\nEmail: ${cleanEmail}\nCompany: ${cleanCompany || "N/A"}\nTime: ${new Date().toISOString()}\n\nMessage:\n${cleanMessage}\n----------------------------------`,
+    });
+
+    if (response.error) {
+      console.error("[Resend Error Response]:", response.error);
+      res.status(500).json({ error: "Failed to dispatch email via Resend.", details: response.error.message });
+      return;
+    }
+
+    // Update rate limit cache on success
+    submissionIpCache.set(ip, now);
+
+    // 7. Auto Reply Subsystem (Disabled behind feature flag)
+    if (AUTO_REPLY_ENABLED) {
+      // Auto-reply configuration prepared for future domain activation
+      console.log(`[Auto-Reply Subsystem] Triggered for user ${cleanEmail}. Feature flag is active.`);
+      try {
+        await resend.emails.send({
+          from: "onboarding@resend.dev",
+          to: cleanEmail,
+          subject: "Thank you for reaching out!",
+          text: `Hi ${cleanName},\n\nThank you for getting in touch. I have received your message and will review it shortly.\n\nBest regards,\nDevottam Kumar`,
+        });
+      } catch (autoErr) {
+        console.error("Auto-reply delivery failed:", autoErr);
+      }
+    }
+
+    res.json({ success: true, message: "Message dispatched successfully." });
+  } catch (error: any) {
+    console.error("Failed to send email via Resend:", error);
+    res.status(500).json({ error: "Internal server error while processing transmission.", details: error.message });
   }
 });
 

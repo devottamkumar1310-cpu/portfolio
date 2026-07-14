@@ -1,24 +1,49 @@
 import { useState, FormEvent } from "react";
-import { Mail, Github, Linkedin, Send, CheckCircle2, Loader2 } from "lucide-react";
+import { Mail, Github, Linkedin, Send, CheckCircle2, Loader2, AlertCircle } from "lucide-react";
 import { BIO_SUMMARY } from "../data";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 
 export default function Contact() {
   const [formState, setFormState] = useState({ name: "", company: "", email: "", message: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!formState.name || !formState.email || !formState.message) return;
 
     setIsSubmitting(true);
-    // Simulate network request
-    setTimeout(() => {
+    setToast(null);
+
+    try {
+      const response = await fetch("/api/contact", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formState),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setIsSubmitted(true);
+        setFormState({ name: "", company: "", email: "", message: "" });
+        setToast({ message: "Message sent successfully.", type: "success" });
+      } else {
+        setToast({
+          message: data.error || "Failed to send message. Please try again.",
+          type: "error",
+        });
+      }
+    } catch (err) {
+      setToast({ message: "Failed to send message. Please try again.", type: "error" });
+    } finally {
       setIsSubmitting(false);
-      setIsSubmitted(true);
-      setFormState({ name: "", company: "", email: "", message: "" });
-    }, 1200);
+      // Auto-clear toast after 4 seconds
+      setTimeout(() => setToast(null), 4000);
+    }
   };
 
   return (
@@ -194,10 +219,33 @@ export default function Contact() {
               </form>
             )}
           </motion.div>
-          
-        </div>
-
       </div>
+      </div>
+
+      {/* Dynamic Toast Notifications */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: 18, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+            className={`fixed bottom-6 right-6 z-50 flex items-center space-x-3 px-4.5 py-3 rounded-xl border backdrop-blur-xl shadow-2xl ${
+              toast.type === "success" 
+                ? "bg-emerald-950/80 border-emerald-500/20 text-emerald-300"
+                : "bg-red-950/80 border-red-500/20 text-red-300"
+            }`}
+          >
+            {toast.type === "success" ? (
+              <CheckCircle2 className="h-4.5 w-4.5 text-emerald-400 shrink-0" />
+            ) : (
+              <AlertCircle className="h-4.5 w-4.5 text-red-400 shrink-0" />
+            )}
+            <span className="text-xs font-sans font-medium tracking-tight">
+              {toast.message}
+            </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </section>
   );
 }
