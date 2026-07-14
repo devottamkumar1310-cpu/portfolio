@@ -663,7 +663,7 @@ export default function CosmicBackground() {
   return (
     <div
       className="fixed inset-0 pointer-events-none select-none print:hidden"
-      style={{ zIndex: -40 }}
+      style={{ zIndex: 0 }}
     >
       <Canvas
         camera={{ position: [0, 0, 0], fov: 60, near: 0.1, far: 2000 }}
