@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { BrowserRouter, Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
+import { Analytics } from '@vercel/analytics/react';
 
 // Sub-components
 import CosmicBackground from "./components/CosmicBackground";
@@ -132,6 +133,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <AppContent />
+      <Analytics />
     </BrowserRouter>
   );
 }
