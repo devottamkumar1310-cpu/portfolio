@@ -19,7 +19,7 @@ export default function Hero({ onTabChange }: HeroProps) {
   };
 
   return (
-    <section className="relative pt-20 pb-20 sm:pt-28 sm:pb-28 overflow-hidden print:hidden flex flex-col items-center justify-center text-center">
+    <section className="relative z-10 pt-20 pb-20 sm:pt-28 sm:pb-28 overflow-hidden print:hidden flex flex-col items-center justify-center text-center">
       
       {/* Decorative Grid Mesh */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff02_1px,transparent_1px),linear-gradient(to_bottom,#ffffff02_1px,transparent_1px)] bg-[size:42px_42px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_40%,#000_65%,transparent_100%)] pointer-events-none -z-10" />

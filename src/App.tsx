@@ -16,6 +16,8 @@ import Contact from "./components/Contact";
 import Footer from "./components/Footer";
 import AdminDashboard from "./components/admin/AdminDashboard";
 
+import About from "./components/About";
+
 export type TabId = "home" | "projects" | "certificates" | "resume" | "contact" | "admin";
 
 function AppContent() {
@@ -75,6 +77,7 @@ function AppContent() {
                 <Route path="/" element={
                   <div className="space-y-6">
                     <Hero onTabChange={(tab: "projects" | "resume") => handleTabChange(tab)} />
+                    <About />
                     <Projects />
                     <CurrentlyBuilding />
                     <Timeline />

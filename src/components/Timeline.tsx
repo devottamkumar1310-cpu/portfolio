@@ -20,7 +20,7 @@ export default function Timeline() {
   };
 
   return (
-    <section id="journey" className="py-12 border-t border-white/5 print:hidden">
+    <section id="journey" className="py-12 border-t border-white/5 print:hidden relative z-10">
       <div className="max-w-4xl mx-auto space-y-8">
         
         {/* Section Header */}

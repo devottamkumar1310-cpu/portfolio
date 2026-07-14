@@ -18,7 +18,7 @@ export default function CurrentlyBuilding() {
   ];
 
   return (
-    <section className="py-12 border-t border-white/5 text-left">
+    <section className="py-12 border-t border-white/5 text-left relative z-10">
       <div className="max-w-4xl mx-auto">
         {/* Title */}
         <motion.div 
