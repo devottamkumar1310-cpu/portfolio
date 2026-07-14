@@ -1,315 +1,521 @@
 import { useEffect, useRef, useState } from "react";
 
+// ─── TYPE DEFINITIONS ───────────────────────────────────────────────────────
 interface Star {
-  x: number;
-  y: number;
-  size: number;
-  opacity: number;
-  vx: number;
-  vy: number;
-  depth: number;
-  shimmerSpeed: number;
-  shimmerPhase: number;
+  x: number; y: number; z: number; // z = depth 0.0 (far) to 1.0 (near)
+  size: number; brightness: number;
+  twinkleSpeed: number; twinklePhase: number;
+  color: number; // 0=white, 1=blue-white, 2=warm
+  vx: number; vy: number;
+}
+
+interface Nebula {
+  cx: number; cy: number; // normalised 0-1
+  rx: number; ry: number; // normalised radii
+  r: number; g: number; b: number; // colour
+  opacity: number; depth: number;
+  orbitRadius: number; orbitSpeed: number; orbitPhase: number;
+}
+
+interface DustCloud {
+  x: number; y: number;
+  size: number; opacity: number; depth: number;
+  vx: number; vy: number; angle: number; rotSpeed: number;
+}
+
+interface Galaxy {
+  x: number; y: number;
+  size: number; tilt: number; opacity: number; depth: number;
+  rotation: number; rotSpeed: number;
+  arms: number; r: number; g: number; b: number;
+}
+
+interface CosmoRay {
+  x1: number; y1: number; x2: number; y2: number;
+  opacity: number; life: number; maxLife: number; speed: number;
+}
+
+// ─── SEEDED RANDOM (deterministic scene every reload) ───────────────────────
+function seededRand(seed: number): () => number {
+  let s = seed;
+  return () => {
+    s = (s * 16807 + 0) % 2147483647;
+    return (s - 1) / 2147483646;
+  };
 }
 
 export default function CosmicBackground() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const animationFrameRef = useRef<number | null>(null);
-  const startTimeRef = useRef<number | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const startRef = useRef<number | null>(null);
   const mouseRef = useRef({ x: 0.5, y: 0.5 });
-  const mouseTargetRef = useRef({ x: 0.5, y: 0.5 });
-  const scrollYRef = useRef(0);
-  const [isClient, setIsClient] = useState(false);
+  const mouseTgtRef = useRef({ x: 0.5, y: 0.5 });
+  const scrollRef = useRef(0);
+  const [ready, setReady] = useState(false);
 
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
+  useEffect(() => { setReady(true); }, []);
 
+  // Mouse + scroll listeners
   useEffect(() => {
-    if (!isClient) return;
-    const handleScroll = () => {
-      scrollYRef.current = window.scrollY;
+    if (!ready) return;
+    const onMove = (e: MouseEvent) => {
+      mouseTgtRef.current = { x: e.clientX / window.innerWidth, y: e.clientY / window.innerHeight };
     };
-    const handleMouseMove = (e: MouseEvent) => {
-      mouseTargetRef.current = {
-        x: e.clientX / window.innerWidth,
-        y: e.clientY / window.innerHeight,
-      };
-    };
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    window.addEventListener("mousemove", handleMouseMove, { passive: true });
+    const onScroll = () => { scrollRef.current = window.scrollY; };
+    window.addEventListener("mousemove", onMove, { passive: true });
+    window.addEventListener("scroll", onScroll, { passive: true });
     return () => {
-      window.removeEventListener("scroll", handleScroll);
-      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("scroll", onScroll);
     };
-  }, [isClient]);
+  }, [ready]);
 
+  // Main render loop
   useEffect(() => {
-    if (!isClient) return;
+    if (!ready) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d", { alpha: false });
     if (!ctx) return;
 
-    let width = 0;
-    let height = 0;
+    const isMobile = window.innerWidth < 768;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    let W = 0, H = 0;
 
-    const resizeCanvas = () => {
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      width = window.innerWidth;
-      height = window.innerHeight;
-      canvas.width = width * dpr;
-      canvas.height = height * dpr;
-      canvas.style.width = `${width}px`;
-      canvas.style.height = `${height}px`;
+    const resize = () => {
+      W = window.innerWidth;
+      H = window.innerHeight;
+      canvas.width = W * dpr;
+      canvas.height = H * dpr;
+      canvas.style.width = `${W}px`;
+      canvas.style.height = `${H}px`;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
-    resizeCanvas();
-    window.addEventListener("resize", resizeCanvas);
+    resize();
+    window.addEventListener("resize", resize);
 
-    const isMobile = window.innerWidth < 768;
+    const rand = seededRand(42);
 
-    // ─── 1. FILM GRAIN PATTERN OVERLAY ────────────────────────────────────
-    const grainCanvas = document.createElement("canvas");
-    grainCanvas.width = 128;
-    grainCanvas.height = 128;
-    const gctx = grainCanvas.getContext("2d")!;
-    const imgData = gctx.createImageData(128, 128);
-    for (let i = 0; i < imgData.data.length; i += 4) {
-      const val = Math.floor(Math.random() * 255);
-      imgData.data[i] = val;
-      imgData.data[i + 1] = val;
-      imgData.data[i + 2] = val;
-      imgData.data[i + 3] = Math.floor(Math.random() * 5 + 1); // Faint HUD monitor noise
+    // ─── LAYER 1: DEEP STARFIELD ─────────────────────────────────────────────
+    // Three populations: ultra-distant (tiny, barely visible), mid-range, near
+    const STAR_COUNT = isMobile ? 800 : 2200;
+    const stars: Star[] = [];
+    for (let i = 0; i < STAR_COUNT; i++) {
+      const pop = rand();
+      const z = pop < 0.7 ? rand() * 0.35         // distant
+               : pop < 0.92 ? 0.35 + rand() * 0.4  // mid-range
+               : 0.75 + rand() * 0.25;             // near-field bright
+
+      const colorRoll = rand();
+      const color = colorRoll < 0.65 ? 0 : colorRoll < 0.82 ? 1 : 2;
+
+      const baseBrightness = z < 0.35 ? 0.02 + rand() * 0.07
+                            : z < 0.75 ? 0.06 + rand() * 0.18
+                            : 0.20 + rand() * 0.55;
+
+      stars.push({
+        x: rand(), y: rand(), z,
+        size: z < 0.35 ? 0.15 + rand() * 0.3
+             : z < 0.75 ? 0.3 + rand() * 0.55
+             : 0.7 + rand() * 1.0,
+        brightness: baseBrightness,
+        twinkleSpeed: z > 0.6 ? 0.3 + rand() * 1.2 : 0,
+        twinklePhase: rand() * Math.PI * 2,
+        color,
+        vx: (rand() - 0.5) * 0.000008 * (1 + z),
+        vy: (rand() - 0.5) * 0.000005 * (1 + z) - 0.000004,
+      });
     }
-    gctx.putImageData(imgData, 0, 0);
-    const grainPattern = ctx.createPattern(grainCanvas, "repeat");
 
-    // ─── 2. LAYER 1: DISTANT DRIFTING STARS ────────────────────────────────
-    const starCount = isMobile ? 220 : 550;
-    const stars: Star[] = Array.from({ length: starCount }, () => {
-      const sizeRoll = Math.random();
-      const depth = sizeRoll > 0.95 ? 0.9 : sizeRoll > 0.7 ? 0.6 : 0.3; // 3 distinct depth levels
-      return {
-        x: Math.random(),
-        y: Math.random(),
-        size: sizeRoll > 0.95 ? 0.85 + Math.random() * 0.5 : 0.2 + Math.random() * 0.35,
-        opacity: sizeRoll > 0.95 ? 0.25 + Math.random() * 0.35 : 0.06 + Math.random() * 0.18,
-        // Extremely slow star drift
-        vx: (Math.random() - 0.5) * 0.000015,
-        vy: (Math.random() - 0.5) * 0.00001 - 0.000008, // subtle upward drift
-        depth,
-        shimmerSpeed: sizeRoll > 0.85 ? 0.12 + Math.random() * 0.25 : 0,
-        shimmerPhase: Math.random() * Math.PI * 2,
-      };
-    });
+    // ─── LAYER 2: NEBULA CLOUDS ──────────────────────────────────────────────
+    // Large volumetric glowing regions that orbit slowly
+    const nebulae: Nebula[] = [
+      // Massive left cyan nebula
+      { cx: 0.12, cy: 0.38, rx: 0.55, ry: 0.48, r: 6, g: 182, b: 212, opacity: 0.038, depth: 0.2, orbitRadius: 0.025, orbitSpeed: 0.008, orbitPhase: 0 },
+      // Right deep blue nebula
+      { cx: 0.88, cy: 0.25, rx: 0.52, ry: 0.50, r: 59, g: 130, b: 246, opacity: 0.042, depth: 0.25, orbitRadius: 0.02, orbitSpeed: 0.011, orbitPhase: 1.8 },
+      // Central indigo cloud
+      { cx: 0.5, cy: 0.62, rx: 0.70, ry: 0.45, r: 99, g: 102, b: 241, opacity: 0.022, depth: 0.15, orbitRadius: 0.015, orbitSpeed: 0.007, orbitPhase: 3.1 },
+      // Lower-right violet bloom
+      { cx: 0.78, cy: 0.82, rx: 0.40, ry: 0.38, r: 139, g: 92, b: 246, opacity: 0.030, depth: 0.18, orbitRadius: 0.018, orbitSpeed: 0.009, orbitPhase: 5.0 },
+      // Upper-center faint pink/magenta wisp
+      { cx: 0.52, cy: 0.08, rx: 0.45, ry: 0.30, r: 236, g: 72, b: 153, opacity: 0.014, depth: 0.12, orbitRadius: 0.012, orbitSpeed: 0.006, orbitPhase: 2.4 },
+    ];
 
-    // ─── 3. RENDER LOOP ───────────────────────────────────────────────────
-    const render = (time: number) => {
-      if (!startTimeRef.current) startTimeRef.current = time;
-      const elapsed = (time - startTimeRef.current) * 0.001;
+    // ─── LAYER 3: COSMIC DUST ────────────────────────────────────────────────
+    const DUST_COUNT = isMobile ? 18 : 40;
+    const dustClouds: DustCloud[] = [];
+    for (let i = 0; i < DUST_COUNT; i++) {
+      dustClouds.push({
+        x: rand(), y: rand(),
+        size: 0.05 + rand() * 0.18,
+        opacity: 0.005 + rand() * 0.018,
+        depth: 0.05 + rand() * 0.3,
+        vx: (rand() - 0.5) * 0.00002,
+        vy: (rand() - 0.5) * 0.00001,
+        angle: rand() * Math.PI * 2,
+        rotSpeed: (rand() - 0.5) * 0.00008,
+      });
+    }
 
-      // Mouse Parallax Lerping
-      mouseRef.current.x += (mouseTargetRef.current.x - mouseRef.current.x) * 0.035;
-      mouseRef.current.y += (mouseTargetRef.current.y - mouseRef.current.y) * 0.035;
+    // ─── LAYER 4: DISTANT GALAXIES ───────────────────────────────────────────
+    const GALAXY_COUNT = isMobile ? 3 : 6;
+    const galaxies: Galaxy[] = [];
+    const galaxyColors = [
+      { r: 255, g: 200, b: 130 }, // warm yellow core
+      { r: 180, g: 220, b: 255 }, // blue-white
+      { r: 255, g: 180, b: 200 }, // pink
+    ];
+    for (let i = 0; i < GALAXY_COUNT; i++) {
+      const c = galaxyColors[i % galaxyColors.length];
+      galaxies.push({
+        x: 0.05 + rand() * 0.9,
+        y: 0.05 + rand() * 0.75,
+        size: (isMobile ? 30 : 50) + rand() * 80,
+        tilt: rand() * Math.PI,
+        opacity: 0.04 + rand() * 0.08,
+        depth: 0.08 + rand() * 0.18,
+        rotation: rand() * Math.PI * 2,
+        rotSpeed: (rand() - 0.5) * 0.00015,
+        arms: Math.floor(2 + rand() * 2),
+        r: c.r, g: c.g, b: c.b,
+      });
+    }
 
+    // ─── LAYER 5: COSMIC RAYS (sporadic streaks of light) ────────────────────
+    const rays: CosmoRay[] = [];
+    const MAX_RAYS = isMobile ? 3 : 6;
+    const spawnRay = () => {
+      if (rays.length >= MAX_RAYS) return;
+      const life = 80 + rand() * 120;
+      const angle = rand() * Math.PI * 2;
+      const len = 30 + rand() * 120;
+      const sx = rand() * W;
+      const sy = rand() * H;
+      rays.push({
+        x1: sx, y1: sy,
+        x2: sx + Math.cos(angle) * len,
+        y2: sy + Math.sin(angle) * len,
+        opacity: 0.0, life: 0, maxLife: life,
+        speed: 0.012 + rand() * 0.02,
+      });
+    };
+
+    // Spawn initial rays
+    for (let i = 0; i < Math.floor(MAX_RAYS / 2); i++) spawnRay();
+
+    // ─── RENDER GALAXY ────────────────────────────────────────────────────────
+    const drawGalaxy = (g: Galaxy, elapsed: number, px: number, py: number) => {
+      const gx = g.x * W + px;
+      const gy = g.y * H + py;
+      const rot = g.rotation + elapsed * g.rotSpeed;
+      const a = g.opacity;
+
+      ctx.save();
+      ctx.translate(gx, gy);
+      ctx.rotate(rot);
+
+      // Core glow
+      const coreGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, g.size * 0.25);
+      coreGrad.addColorStop(0, `rgba(${g.r},${g.g},${g.b},${a * 1.8})`);
+      coreGrad.addColorStop(0.5, `rgba(${g.r},${g.g},${g.b},${a * 0.6})`);
+      coreGrad.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = coreGrad;
+      ctx.beginPath();
+      ctx.arc(0, 0, g.size * 0.25, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Spiral arms (elliptical approach)
+      ctx.save();
+      ctx.scale(1, 0.35); // flatten to ellipse = galaxy tilt illusion
+      const diskGrad = ctx.createRadialGradient(0, 0, g.size * 0.05, 0, 0, g.size);
+      diskGrad.addColorStop(0, `rgba(${g.r},${g.g},${g.b},${a * 0.8})`);
+      diskGrad.addColorStop(0.4, `rgba(${g.r},${g.g},${g.b},${a * 0.3})`);
+      diskGrad.addColorStop(0.75, `rgba(${g.r},${g.g},${g.b},${a * 0.08})`);
+      diskGrad.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = diskGrad;
+      ctx.beginPath();
+      ctx.arc(0, 0, g.size, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      ctx.restore();
+    };
+
+    // ─── RENDER DUST CLOUD ────────────────────────────────────────────────────
+    const drawDustCloud = (d: DustCloud, px: number, py: number) => {
+      const x = d.x * W + px;
+      const y = d.y * H + py;
+      const r = d.size * Math.min(W, H);
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(d.angle);
+      const g = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
+      g.addColorStop(0, `rgba(180,200,255,${d.opacity * 1.5})`);
+      g.addColorStop(0.5, `rgba(130,160,220,${d.opacity * 0.6})`);
+      g.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = g;
+      ctx.scale(1, 0.55 + Math.sin(d.angle) * 0.25);
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    };
+
+    // ─── MAIN RENDER LOOP ─────────────────────────────────────────────────────
+    let rayTimer = 0;
+    const RAND_LOCAL = seededRand(99); // separate seeded rand for rays
+
+    const render = (ts: number) => {
+      if (!startRef.current) startRef.current = ts;
+      const elapsed = (ts - startRef.current) * 0.001;
+
+      // Smooth mouse lerp
+      mouseRef.current.x += (mouseTgtRef.current.x - mouseRef.current.x) * 0.028;
+      mouseRef.current.y += (mouseTgtRef.current.y - mouseRef.current.y) * 0.028;
       const mx = mouseRef.current.x;
       const my = mouseRef.current.y;
-      const scrollY = scrollYRef.current;
+      const scrollY = scrollRef.current;
 
-      // Base solid void
-      ctx.fillStyle = "#020204";
-      ctx.fillRect(0, 0, width, height);
+      // Normalised mouse offset (-1 to +1)
+      const mox = (mx - 0.5) * 2;
+      const moy = (my - 0.5) * 2;
 
-      // Deep Space Baseline Ambient Glow
-      const ambientGlow = ctx.createRadialGradient(
-        width * 0.5,
-        height * 0.5,
-        0,
-        width * 0.5,
-        height * 0.5,
-        Math.max(width, height) * 0.85
-      );
-      ambientGlow.addColorStop(0, "rgba(2, 6, 22, 0.4)");
-      ambientGlow.addColorStop(0.65, "rgba(1, 3, 10, 0.12)");
-      ambientGlow.addColorStop(1.0, "#020204");
-      ctx.fillStyle = ambientGlow;
-      ctx.fillRect(0, 0, width, height);
+      // ── 0. Base void ───────────────────────────────────────────────────────
+      ctx.fillStyle = "#010108";
+      ctx.fillRect(0, 0, W, H);
 
-      // ─── LAYER 2: NEBULA HAZE (Subtle movement) ──────────────────────────
+      // ── Ambient deep-space gradient ────────────────────────────────────────
+      const amb = ctx.createRadialGradient(W * 0.5, H * 0.4, 0, W * 0.5, H * 0.5, Math.max(W, H) * 0.9);
+      amb.addColorStop(0, "rgba(3, 8, 30, 0.6)");
+      amb.addColorStop(0.5, "rgba(1, 4, 15, 0.25)");
+      amb.addColorStop(1, "rgba(0, 0, 0, 0)");
+      ctx.fillStyle = amb;
+      ctx.fillRect(0, 0, W, H);
+
+      // ── LAYER 4: DISTANT GALAXIES (deepest, slowest parallax) ─────────────
       ctx.save();
       ctx.globalCompositeOperation = "screen";
-      {
-        // Cyan Nebula Haze - drifting slowly in a circular orbit
-        const cx1 = width * (0.15 + Math.sin(elapsed * 0.015) * 0.03) + (mx - 0.5) * 20;
-        const cy1 = height * (0.35 + Math.cos(elapsed * 0.01) * 0.02) - scrollY * 0.012;
-        const radius1 = Math.max(width, height) * (isMobile ? 0.55 : 0.42);
-        const grad1 = ctx.createRadialGradient(cx1, cy1, 0, cx1, cy1, radius1);
-        grad1.addColorStop(0, "rgba(6, 182, 212, 0.05)"); 
-        grad1.addColorStop(0.5, "rgba(6, 95, 115, 0.015)");
-        grad1.addColorStop(1.0, "rgba(0, 0, 0, 0)");
-        ctx.fillStyle = grad1;
-        ctx.beginPath();
-        ctx.arc(cx1, cy1, radius1, 0, Math.PI * 2);
-        ctx.fill();
+      galaxies.forEach((g) => {
+        g.rotation += g.rotSpeed;
+        const px = mox * g.depth * 12;
+        const py = moy * g.depth * 8 - scrollY * g.depth * 0.08;
+        drawGalaxy(g, elapsed, px, py);
+      });
+      ctx.restore();
 
-        // Electric Blue Nebula Haze - drifting slowly
-        const cx2 = width * (0.82 + Math.cos(elapsed * 0.012) * 0.03) + (mx - 0.5) * 18;
-        const cy2 = height * (0.28 + Math.sin(elapsed * 0.014) * 0.02) - scrollY * 0.012;
-        const radius2 = Math.max(width, height) * (isMobile ? 0.6 : 0.45);
-        const grad2 = ctx.createRadialGradient(cx2, cy2, 0, cx2, cy2, radius2);
-        grad2.addColorStop(0, "rgba(59, 130, 246, 0.06)"); 
-        grad2.addColorStop(0.5, "rgba(30, 58, 138, 0.015)");
-        grad2.addColorStop(1.0, "rgba(0, 0, 0, 0)");
+      // ── LAYER 2: NEBULA CLOUDS ────────────────────────────────────────────
+      ctx.save();
+      ctx.globalCompositeOperation = "screen";
+      nebulae.forEach((n) => {
+        // Slow orbital drift
+        const ox = Math.sin(elapsed * n.orbitSpeed + n.orbitPhase) * n.orbitRadius;
+        const oy = Math.cos(elapsed * n.orbitSpeed * 0.7 + n.orbitPhase) * n.orbitRadius * 0.6;
+        const px = mox * n.depth * 25;
+        const py = moy * n.depth * 18 - scrollY * n.depth * 0.1;
+
+        const ncx = (n.cx + ox) * W + px;
+        const ncy = (n.cy + oy) * H + py;
+        const radiusX = n.rx * W;
+        const radiusY = n.ry * H;
+        const rad = Math.max(radiusX, radiusY);
+
+        const grad = ctx.createRadialGradient(ncx, ncy, 0, ncx, ncy, rad);
+        grad.addColorStop(0, `rgba(${n.r},${n.g},${n.b},${n.opacity * 1.5})`);
+        grad.addColorStop(0.35, `rgba(${n.r},${n.g},${n.b},${n.opacity * 0.7})`);
+        grad.addColorStop(0.7, `rgba(${n.r},${n.g},${n.b},${n.opacity * 0.2})`);
+        grad.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = grad;
+
+        // Elliptical nebula shape
+        ctx.save();
+        ctx.translate(ncx, ncy);
+        ctx.scale(radiusX / rad, radiusY / rad);
+        ctx.beginPath();
+        ctx.arc(0, 0, rad, 0, Math.PI * 2);
+        ctx.fillStyle = grad;
+        // need to recalculate grad after scale — use a simple large radial
+        const grad2 = ctx.createRadialGradient(0, 0, 0, 0, 0, rad);
+        grad2.addColorStop(0, `rgba(${n.r},${n.g},${n.b},${n.opacity * 1.5})`);
+        grad2.addColorStop(0.4, `rgba(${n.r},${n.g},${n.b},${n.opacity * 0.6})`);
+        grad2.addColorStop(0.75, `rgba(${n.r},${n.g},${n.b},${n.opacity * 0.15})`);
+        grad2.addColorStop(1, "rgba(0,0,0,0)");
         ctx.fillStyle = grad2;
-        ctx.beginPath();
-        ctx.arc(cx2, cy2, radius2, 0, Math.PI * 2);
         ctx.fill();
-      }
+        ctx.restore();
+      });
       ctx.restore();
 
-      // ─── LAYER 3: LIGHT BEAMS & ATMOSPHERIC GRADIENTS (Slow shifting) ────
+      // ── LAYER 3: COSMIC DUST ───────────────────────────────────────────────
       ctx.save();
       ctx.globalCompositeOperation = "screen";
-      {
-        // Volumetric Light Beam 1: Swinging slowly from top-right
-        const angle1 = Math.sin(elapsed * 0.05) * 0.03;
-        ctx.save();
-        ctx.translate(width * 0.85, -50);
-        ctx.rotate(angle1);
-        const beamGrad1 = ctx.createLinearGradient(0, 0, -width * 0.45, height * 0.8);
-        beamGrad1.addColorStop(0, "rgba(6, 182, 212, 0.025)"); // cyan highlight
-        beamGrad1.addColorStop(0.5, "rgba(59, 130, 246, 0.008)");
-        beamGrad1.addColorStop(1.0, "rgba(0, 0, 0, 0)");
-        ctx.fillStyle = beamGrad1;
-        ctx.beginPath();
-        ctx.moveTo(-120, 0);
-        ctx.lineTo(120, 0);
-        ctx.lineTo(-width * 0.1, height);
-        ctx.lineTo(-width * 0.6, height);
-        ctx.closePath();
-        ctx.fill();
-        ctx.restore();
-
-        // Volumetric Light Beam 2: Swinging slowly from top-left
-        const angle2 = Math.cos(elapsed * 0.04) * 0.04;
-        ctx.save();
-        ctx.translate(width * 0.12, -80);
-        ctx.rotate(angle2);
-        const beamGrad2 = ctx.createLinearGradient(0, 0, width * 0.4, height * 0.85);
-        beamGrad2.addColorStop(0, "rgba(59, 130, 246, 0.025)"); // blue highlight
-        beamGrad2.addColorStop(0.5, "rgba(6, 182, 212, 0.008)");
-        beamGrad2.addColorStop(1.0, "rgba(0, 0, 0, 0)");
-        ctx.fillStyle = beamGrad2;
-        ctx.beginPath();
-        ctx.moveTo(-100, 0);
-        ctx.lineTo(100, 0);
-        ctx.lineTo(width * 0.6, height);
-        ctx.lineTo(width * 0.1, height);
-        ctx.closePath();
-        ctx.fill();
-        ctx.restore();
-      }
+      dustClouds.forEach((d) => {
+        d.x += d.vx; d.y += d.vy; d.angle += d.rotSpeed;
+        if (d.x < -0.1) d.x = 1.1;
+        if (d.x > 1.1)  d.x = -0.1;
+        if (d.y < -0.1) d.y = 1.1;
+        if (d.y > 1.1)  d.y = -0.1;
+        const px = mox * d.depth * 18;
+        const py = moy * d.depth * 12 - scrollY * d.depth * 0.07;
+        drawDustCloud(d, px, py);
+      });
       ctx.restore();
 
-      // ─── LAYER 5: SOFT ILLUMINATION (Hero & EVE sections backlight) ──────
-      {
-        // Hero Illumination
-        const hX = width * 0.5 + (mx - 0.5) * 15;
-        const hY = height * 0.26 + (my - 0.5) * 10 - scrollY * 0.15;
-        const hRad = Math.max(width, height) * (isMobile ? 0.65 : 0.42);
-        const heroGrad = ctx.createRadialGradient(hX, hY, 0, hX, hY, hRad);
-        heroGrad.addColorStop(0, "rgba(6, 182, 212, 0.055)"); // soft cyan
-        heroGrad.addColorStop(0.5, "rgba(59, 130, 246, 0.02)"); // electric blue
-        heroGrad.addColorStop(1.0, "rgba(0, 0, 0, 0)");
-        ctx.fillStyle = heroGrad;
-        ctx.beginPath();
-        ctx.arc(hX, hY, hRad, 0, Math.PI * 2);
-        ctx.fill();
+      // ── LAYER 1: STARFIELD ─────────────────────────────────────────────────
+      stars.forEach((s) => {
+        s.x += s.vx; s.y += s.vy;
+        if (s.x < 0) s.x = 1; if (s.x > 1) s.x = 0;
+        if (s.y < 0) s.y = 1; if (s.y > 1) s.y = 0;
 
-        // EVE Flagship Illumination (Soft violet backlight, violet reserved for EVE)
-        const eX = width * 0.5 + (mx - 0.5) * 12;
-        const eY = height * 0.88 + (my - 0.5) * 8 - scrollY * 0.22;
-        const eRad = Math.max(width, height) * (isMobile ? 0.62 : 0.4);
-        const eveGrad = ctx.createRadialGradient(eX, eY, 0, eX, eY, eRad);
-        eveGrad.addColorStop(0, "rgba(139, 92, 246, 0.045)"); // soft violet backlight
-        eveGrad.addColorStop(0.5, "rgba(6, 182, 212, 0.015)"); // cyan fade
-        eveGrad.addColorStop(1.0, "rgba(0, 0, 0, 0)");
-        ctx.fillStyle = eveGrad;
-        ctx.beginPath();
-        ctx.arc(eX, eY, eRad, 0, Math.PI * 2);
-        ctx.fill();
-      }
+        // Depth-scaled parallax
+        const px = mox * s.z * 35;
+        const py = moy * s.z * 24 - scrollY * s.z * 0.45;
+        const sx = ((s.x * W + px) % W + W) % W;
+        const sy = ((s.y * H + py) % H + H) % H;
 
-      // ─── LAYER 1 & 4: STAR DRIFT & MOUSE-BASED PARALLAX ──────────────────
-      stars.forEach((star) => {
-        // Drift movement
-        star.x += star.vx;
-        star.y += star.vy;
-
-        // Wrap stars
-        if (star.x < 0) star.x = 1;
-        if (star.x > 1) star.x = 0;
-        if (star.y < 0) star.y = 1;
-        if (star.y > 1) star.y = 0;
-
-        // Layer-based Parallax calculations
-        const pX = (mx - 0.5) * star.depth * 30;
-        const pY = (my - 0.5) * star.depth * 22 - scrollY * star.depth * 0.5;
-
-        const sx = (star.x * width + pX + width) % width;
-        const sy = (star.y * height + pY + height) % height;
-
-        let currentOpacity = star.opacity;
-        if (star.shimmerSpeed > 0) {
-          currentOpacity = star.opacity * (0.65 + 0.35 * Math.sin(elapsed * star.shimmerSpeed + star.shimmerPhase));
+        let b = s.brightness;
+        if (s.twinkleSpeed > 0) {
+          b *= 0.55 + 0.45 * Math.sin(elapsed * s.twinkleSpeed + s.twinklePhase);
         }
 
-        ctx.fillStyle = `rgba(255, 255, 255, ${currentOpacity})`;
+        let r = 255, g = 255, bl = 255;
+        if (s.color === 1) { r = 210; g = 230; bl = 255; }      // blue-white
+        else if (s.color === 2) { r = 255; g = 230; bl = 180; } // warm
+
+        // Cross-diffraction spike for bright near stars
+        if (s.z > 0.82 && b > 0.25) {
+          const spikeLen = s.size * 3.5;
+          ctx.strokeStyle = `rgba(${r},${g},${bl},${b * 0.35})`;
+          ctx.lineWidth = 0.5;
+          ctx.beginPath();
+          ctx.moveTo(sx - spikeLen, sy); ctx.lineTo(sx + spikeLen, sy);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(sx, sy - spikeLen); ctx.lineTo(sx, sy + spikeLen);
+          ctx.stroke();
+        }
+
+        // Glow halo for bright stars
+        if (s.z > 0.7 && b > 0.15) {
+          const halo = ctx.createRadialGradient(sx, sy, 0, sx, sy, s.size * 4);
+          halo.addColorStop(0, `rgba(${r},${g},${bl},${b * 0.18})`);
+          halo.addColorStop(1, "rgba(0,0,0,0)");
+          ctx.fillStyle = halo;
+          ctx.beginPath();
+          ctx.arc(sx, sy, s.size * 4, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        ctx.fillStyle = `rgba(${r},${g},${bl},${b})`;
         ctx.beginPath();
-        ctx.arc(sx, sy, star.size, 0, Math.PI * 2);
+        ctx.arc(sx, sy, s.size, 0, Math.PI * 2);
         ctx.fill();
       });
 
-      // ─── FILM GRAIN MONITOR OVERLAY ──────────────────────────────────────
-      if (grainPattern) {
-        ctx.save();
-        ctx.globalCompositeOperation = "overlay";
-        ctx.fillStyle = grainPattern;
-        ctx.fillRect(0, 0, width, height);
-        ctx.restore();
+      // ── LAYER 5: COSMIC RAYS ───────────────────────────────────────────────
+      rayTimer += 0.016;
+      if (rayTimer > 3.5 + RAND_LOCAL() * 8) {
+        rayTimer = 0;
+        spawnRay();
       }
+      ctx.save();
+      ctx.globalCompositeOperation = "screen";
+      for (let i = rays.length - 1; i >= 0; i--) {
+        const ray = rays[i];
+        ray.life++;
+        const progress = ray.life / ray.maxLife;
+        const envelope = progress < 0.2 ? progress / 0.2 : progress > 0.75 ? (1 - progress) / 0.25 : 1;
+        ray.opacity = 0.12 * envelope;
+        if (ray.life >= ray.maxLife) { rays.splice(i, 1); continue; }
+        const grad = ctx.createLinearGradient(ray.x1, ray.y1, ray.x2, ray.y2);
+        grad.addColorStop(0, `rgba(200,230,255,0)`);
+        grad.addColorStop(0.4, `rgba(200,230,255,${ray.opacity})`);
+        grad.addColorStop(0.6, `rgba(255,255,255,${ray.opacity * 1.4})`);
+        grad.addColorStop(1, `rgba(200,230,255,0)`);
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        ctx.moveTo(ray.x1, ray.y1);
+        ctx.lineTo(ray.x2, ray.y2);
+        ctx.stroke();
+      }
+      ctx.restore();
 
-      // Vignette Framing for visual depth
-      const centerGrad = ctx.createRadialGradient(
-        width * 0.5,
-        height * 0.45,
-        Math.min(width, height) * 0.22,
-        width * 0.5,
-        height * 0.45,
-        Math.max(width, height) * 0.8
-      );
-      centerGrad.addColorStop(0, "rgba(0, 0, 0, 0)");
-      centerGrad.addColorStop(0.65, "rgba(0, 0, 0, 0.15)");
-      centerGrad.addColorStop(1.0, "rgba(0, 0, 0, 0.65)"); // soft OS CRT lens outline
-      ctx.fillStyle = centerGrad;
-      ctx.fillRect(0, 0, width, height);
+      // ── SOFT HERO ILLUMINATION ─────────────────────────────────────────────
+      // Keeps the hero text zone readable with gentle backlighting
+      const heroX = W * 0.5 + mox * 20;
+      const heroY = H * 0.32 + moy * 14 - scrollY * 0.18;
+      const heroR = Math.max(W, H) * 0.55;
+      const heroGlow = ctx.createRadialGradient(heroX, heroY, 0, heroX, heroY, heroR);
+      heroGlow.addColorStop(0, "rgba(8,30,60, 0.45)");
+      heroGlow.addColorStop(0.45, "rgba(4,15,35, 0.18)");
+      heroGlow.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = heroGlow;
+      ctx.fillRect(0, 0, W, H);
 
-      animationFrameRef.current = requestAnimationFrame(render);
+      // Cyan accent on hero
+      const cyanGlow = ctx.createRadialGradient(heroX, heroY, 0, heroX, heroY, heroR * 0.7);
+      cyanGlow.addColorStop(0, "rgba(6,182,212, 0.04)");
+      cyanGlow.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.save();
+      ctx.globalCompositeOperation = "screen";
+      ctx.fillStyle = cyanGlow;
+      ctx.fillRect(0, 0, W, H);
+      ctx.restore();
+
+      // EVE violet accent (violet reserved for EVE flagship)
+      const eveX = W * 0.5 + mox * 14;
+      const eveY = H * 0.88 + moy * 10 - scrollY * 0.25;
+      const eveGlow = ctx.createRadialGradient(eveX, eveY, 0, eveX, eveY, Math.max(W, H) * 0.4);
+      eveGlow.addColorStop(0, "rgba(139,92,246, 0.04)");
+      eveGlow.addColorStop(0.5, "rgba(79,70,229, 0.015)");
+      eveGlow.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.save();
+      ctx.globalCompositeOperation = "screen";
+      ctx.fillStyle = eveGlow;
+      ctx.fillRect(0, 0, W, H);
+      ctx.restore();
+
+      // ── LENS SCATTER / atmospheric glow at screen edges ────────────────────
+      ctx.save();
+      ctx.globalCompositeOperation = "screen";
+      // Top-right lens bloom
+      const bloomX = W * (0.75 + mox * 0.02);
+      const bloomY = H * (0.05 + moy * 0.01);
+      const bloomR = Math.max(W, H) * 0.35;
+      const bloom = ctx.createRadialGradient(bloomX, bloomY, 0, bloomX, bloomY, bloomR);
+      bloom.addColorStop(0, "rgba(180, 220, 255, 0.018)");
+      bloom.addColorStop(0.5, "rgba(100, 160, 255, 0.006)");
+      bloom.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = bloom;
+      ctx.beginPath();
+      ctx.arc(bloomX, bloomY, bloomR, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      // ── VIGNETTE (cinematic framing) ───────────────────────────────────────
+      const vig = ctx.createRadialGradient(W * 0.5, H * 0.5, Math.min(W, H) * 0.25, W * 0.5, H * 0.5, Math.max(W, H) * 0.82);
+      vig.addColorStop(0, "rgba(0,0,0,0)");
+      vig.addColorStop(0.55, "rgba(0,0,0,0.08)");
+      vig.addColorStop(0.82, "rgba(0,0,0,0.32)");
+      vig.addColorStop(1, "rgba(0,0,0,0.68)");
+      ctx.fillStyle = vig;
+      ctx.fillRect(0, 0, W, H);
+
+      rafRef.current = requestAnimationFrame(render);
     };
 
-    animationFrameRef.current = requestAnimationFrame(render);
+    rafRef.current = requestAnimationFrame(render);
     return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-      window.removeEventListener("resize", resizeCanvas);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      window.removeEventListener("resize", resize);
     };
-  }, [isClient]);
+  }, [ready]);
 
   return (
     <div className="fixed inset-0 w-full h-full pointer-events-none select-none -z-40 print:hidden overflow-hidden">
-      <div className="absolute inset-0 bg-[#020204] -z-50" />
+      {/* Solid base colour so canvas background is never transparent */}
+      <div className="absolute inset-0 bg-[#010108] -z-50" />
       <canvas ref={canvasRef} className="w-full h-full block" id="cosmic-canvas" />
     </div>
   );
