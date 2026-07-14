@@ -17,6 +17,7 @@ import Footer from "./components/Footer";
 import AdminDashboard from "./components/admin/AdminDashboard";
 
 import About from "./components/About";
+import Achievements from "./components/Achievements";
 
 export type TabId = "home" | "projects" | "certificates" | "resume" | "contact" | "admin";
 
@@ -83,6 +84,7 @@ function AppContent() {
                     <Timeline />
                     <Skills />
                     <Certificates />
+                    <Achievements />
                     <Contact />
                   </div>
                 } />
