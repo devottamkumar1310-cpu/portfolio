@@ -21,7 +21,7 @@ export default function Header({ currentTab }: HeaderProps) {
   ];
 
   return (
-    <header className="sticky top-4 z-50 mx-4 md:mx-auto max-w-4xl liquid-glass-navbar rounded-full print:hidden">
+    <header className="sticky top-4 z-50 mx-4 md:mx-auto max-w-[1200px] liquid-glass-navbar rounded-full print:hidden">
       <div className="px-6 h-14 flex items-center justify-between relative">
         
         {/* Name Logo */}
