@@ -1,76 +1,105 @@
 import { useEffect, useRef, useState } from "react";
 
-// ─── TYPE DEFINITIONS ───────────────────────────────────────────────────────
+// ─── TYPES ─────────────────────────────────────────────────────────────────
 interface Star {
-  x: number; y: number; z: number; // z = depth 0.0 (far) to 1.0 (near)
-  size: number; brightness: number;
-  twinkleSpeed: number; twinklePhase: number;
-  color: number; // 0=white, 1=blue-white, 2=warm
+  x: number; y: number;
+  z: number;           // depth: 0.0 = infinitely far, 1.0 = right in front
+  size: number;
+  brightness: number;
+  twinkleSpeed: number;
+  twinklePhase: number;
+  colorType: 0 | 1 | 2; // 0=white, 1=blue-white, 2=warm
   vx: number; vy: number;
 }
 
 interface Nebula {
-  cx: number; cy: number; // normalised 0-1
-  rx: number; ry: number; // normalised radii
-  r: number; g: number; b: number; // colour
-  opacity: number; depth: number;
-  orbitRadius: number; orbitSpeed: number; orbitPhase: number;
+  cx: number; cy: number; // normalized 0-1
+  rx: number; ry: number;
+  r: number; g: number; b: number;
+  opacity: number;
+  z: number;           // depth for parallax
+  driftFreqX: number; driftFreqY: number;
+  driftAmpX: number;  driftAmpY: number;
+  phase: number;
 }
 
 interface DustCloud {
   x: number; y: number;
-  size: number; opacity: number; depth: number;
-  vx: number; vy: number; angle: number; rotSpeed: number;
+  size: number; opacity: number;
+  z: number;
+  vx: number; vy: number;
+  angle: number; rotSpeed: number;
 }
 
 interface Galaxy {
   x: number; y: number;
-  size: number; tilt: number; opacity: number; depth: number;
+  size: number; tilt: number;
+  opacity: number; z: number;
   rotation: number; rotSpeed: number;
-  arms: number; r: number; g: number; b: number;
+  r: number; g: number; b: number;
 }
 
 interface CosmoRay {
-  x1: number; y1: number; x2: number; y2: number;
-  opacity: number; life: number; maxLife: number; speed: number;
+  x1: number; y1: number;
+  x2: number; y2: number;
+  opacity: number;
+  life: number; maxLife: number;
 }
 
-// ─── SEEDED RANDOM (deterministic scene every reload) ───────────────────────
-function seededRand(seed: number): () => number {
-  let s = seed;
-  return () => {
-    s = (s * 16807 + 0) % 2147483647;
-    return (s - 1) / 2147483646;
-  };
+// ─── SEEDED RNG ─────────────────────────────────────────────────────────────
+function mkRand(seed: number) {
+  let s = seed | 0;
+  return () => { s = (Math.imul(s, 747796405) + 2891336453) | 0; return ((s >>> 18) ^ s) / 0xffffffff + 0.5; };
+}
+
+// ─── PERSPECTIVE PROJECTION ──────────────────────────────────────────────────
+// This is the core of the 3D feel.
+// A camera displacement D at Z-depth produces a screen offset of D * FOCAL / actualDepth.
+// Objects close to the viewer (high z) have small actualDepth → move a LOT.
+// Objects far away (low z) have large actualDepth → barely move.
+const FOCAL = 1.8;
+function perspOffset(cameraDisplacement: number, z: number): number {
+  // Map z (0=far, 1=near) to actualDepth (large=far, small=near)
+  const actualDepth = 1.05 - z * 0.96; // z=0 → 1.05, z=1 → 0.09
+  return (cameraDisplacement * FOCAL) / actualDepth;
 }
 
 export default function CosmicBackground() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const rafRef = useRef<number | null>(null);
-  const startRef = useRef<number | null>(null);
-  const mouseRef = useRef({ x: 0.5, y: 0.5 });
-  const mouseTgtRef = useRef({ x: 0.5, y: 0.5 });
-  const scrollRef = useRef(0);
+  const rafRef    = useRef<number | null>(null);
+  const t0Ref     = useRef<number | null>(null);
   const [ready, setReady] = useState(false);
+
+  // ── Input state (raw) ─────────────────────────────────────────────────────
+  const mouseTargetRef = useRef({ x: 0.5, y: 0.5 });
+  const scrollRef      = useRef(0);
+  const scrollVelRef   = useRef(0); // scroll velocity for warp effect
 
   useEffect(() => { setReady(true); }, []);
 
-  // Mouse + scroll listeners
   useEffect(() => {
     if (!ready) return;
+    let lastScrollY = 0;
     const onMove = (e: MouseEvent) => {
-      mouseTgtRef.current = { x: e.clientX / window.innerWidth, y: e.clientY / window.innerHeight };
+      mouseTargetRef.current = {
+        x: e.clientX / window.innerWidth,
+        y: e.clientY / window.innerHeight,
+      };
     };
-    const onScroll = () => { scrollRef.current = window.scrollY; };
+    const onScroll = () => {
+      const sy = window.scrollY;
+      scrollVelRef.current = sy - lastScrollY;
+      lastScrollY = sy;
+      scrollRef.current = sy;
+    };
     window.addEventListener("mousemove", onMove, { passive: true });
-    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("scroll",    onScroll, { passive: true });
     return () => {
       window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("scroll",    onScroll);
     };
   }, [ready]);
 
-  // Main render loop
   useEffect(() => {
     if (!ready) return;
     const canvas = canvasRef.current;
@@ -85,165 +114,192 @@ export default function CosmicBackground() {
     const resize = () => {
       W = window.innerWidth;
       H = window.innerHeight;
-      canvas.width = W * dpr;
+      canvas.width  = W * dpr;
       canvas.height = H * dpr;
-      canvas.style.width = `${W}px`;
+      canvas.style.width  = `${W}px`;
       canvas.style.height = `${H}px`;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
     resize();
     window.addEventListener("resize", resize);
 
-    const rand = seededRand(42);
+    const rand = mkRand(42);
 
-    // ─── LAYER 1: DEEP STARFIELD ─────────────────────────────────────────────
-    // Three populations: ultra-distant (tiny, barely visible), mid-range, near
-    const STAR_COUNT = isMobile ? 800 : 2200;
+    // ── 3D CAMERA with spring physics ────────────────────────────────────────
+    // The camera is a virtual entity that follows the mouse with inertia.
+    // When you move your mouse, the camera slowly swings toward the target.
+    // This is what creates the "floating through space" sensation.
+    const cam = {
+      x: 0, y: 0,       // current position (pixels of displacement)
+      vx: 0, vy: 0,     // velocity for spring physics
+      tilt: 0, tiltV: 0, // subtle z-axis rotation
+    };
+    const CAM_SPRING   = 0.032; // how fast camera accelerates toward target
+    const CAM_DAMPING  = 0.82;  // friction (< 1 = slow down, 0.82 = moderate inertia)
+    const CAM_RANGE_X  = isMobile ? 12 : 22; // max camera displacement in pixels
+    const CAM_RANGE_Y  = isMobile ? 8  : 15;
+    const TILT_RANGE   = 0.006; // max canvas rotation in radians
+    const TILT_SPRING  = 0.018;
+    const TILT_DAMPING = 0.88;
+
+    // ── Idle camera drift (always alive even without mouse input) ─────────────
+    // Simulates a camera floating freely in space.
+    const IDLE_AMP_X = isMobile ? 3 : 6;
+    const IDLE_AMP_Y = isMobile ? 2 : 4;
+    const IDLE_FREQ_X = 0.07;
+    const IDLE_FREQ_Y = 0.05;
+
+    // ── LAYER 1: STARFIELD ───────────────────────────────────────────────────
+    const STAR_COUNT = isMobile ? 700 : 2000;
     const stars: Star[] = [];
     for (let i = 0; i < STAR_COUNT; i++) {
       const pop = rand();
-      const z = pop < 0.7 ? rand() * 0.35         // distant
-               : pop < 0.92 ? 0.35 + rand() * 0.4  // mid-range
-               : 0.75 + rand() * 0.25;             // near-field bright
+      // Three populations with clear depth separation
+      const z = pop < 0.68
+        ? rand() * 0.28                   // far:  z=0.00–0.28
+        : pop < 0.91
+        ? 0.28 + rand() * 0.42            // mid:  z=0.28–0.70
+        : 0.70 + rand() * 0.30;           // near: z=0.70–1.00
 
       const colorRoll = rand();
-      const color = colorRoll < 0.65 ? 0 : colorRoll < 0.82 ? 1 : 2;
-
-      const baseBrightness = z < 0.35 ? 0.02 + rand() * 0.07
-                            : z < 0.75 ? 0.06 + rand() * 0.18
-                            : 0.20 + rand() * 0.55;
+      const colorType = (colorRoll < 0.62 ? 0 : colorRoll < 0.82 ? 1 : 2) as 0 | 1 | 2;
 
       stars.push({
         x: rand(), y: rand(), z,
-        size: z < 0.35 ? 0.15 + rand() * 0.3
-             : z < 0.75 ? 0.3 + rand() * 0.55
-             : 0.7 + rand() * 1.0,
-        brightness: baseBrightness,
-        twinkleSpeed: z > 0.6 ? 0.3 + rand() * 1.2 : 0,
+        size: z < 0.28 ? 0.12 + rand() * 0.22
+            : z < 0.70 ? 0.28 + rand() * 0.50
+            : 0.65 + rand() * 1.10,
+        brightness: z < 0.28 ? 0.02 + rand() * 0.06
+                  : z < 0.70 ? 0.07 + rand() * 0.18
+                  : 0.22 + rand() * 0.60,
+        twinkleSpeed: z > 0.65 ? 0.4 + rand() * 1.4 : 0,
         twinklePhase: rand() * Math.PI * 2,
-        color,
-        vx: (rand() - 0.5) * 0.000008 * (1 + z),
-        vy: (rand() - 0.5) * 0.000005 * (1 + z) - 0.000004,
+        colorType,
+        vx: (rand() - 0.5) * 0.000007 * (0.4 + z * 0.8),
+        vy: (rand() - 0.5) * 0.000004 * (0.4 + z * 0.8) - 0.000003,
       });
     }
 
-    // ─── LAYER 2: NEBULA CLOUDS ──────────────────────────────────────────────
-    // Large volumetric glowing regions that orbit slowly
+    // ── LAYER 2: NEBULA CLOUDS ────────────────────────────────────────────────
+    // Very far background — z is very low so they barely react to camera movement.
+    // They're huge structures, so they should feel like "walls" of the universe.
     const nebulae: Nebula[] = [
-      // Massive left cyan nebula
-      { cx: 0.12, cy: 0.38, rx: 0.55, ry: 0.48, r: 6, g: 182, b: 212, opacity: 0.038, depth: 0.2, orbitRadius: 0.025, orbitSpeed: 0.008, orbitPhase: 0 },
-      // Right deep blue nebula
-      { cx: 0.88, cy: 0.25, rx: 0.52, ry: 0.50, r: 59, g: 130, b: 246, opacity: 0.042, depth: 0.25, orbitRadius: 0.02, orbitSpeed: 0.011, orbitPhase: 1.8 },
-      // Central indigo cloud
-      { cx: 0.5, cy: 0.62, rx: 0.70, ry: 0.45, r: 99, g: 102, b: 241, opacity: 0.022, depth: 0.15, orbitRadius: 0.015, orbitSpeed: 0.007, orbitPhase: 3.1 },
-      // Lower-right violet bloom
-      { cx: 0.78, cy: 0.82, rx: 0.40, ry: 0.38, r: 139, g: 92, b: 246, opacity: 0.030, depth: 0.18, orbitRadius: 0.018, orbitSpeed: 0.009, orbitPhase: 5.0 },
-      // Upper-center faint pink/magenta wisp
-      { cx: 0.52, cy: 0.08, rx: 0.45, ry: 0.30, r: 236, g: 72, b: 153, opacity: 0.014, depth: 0.12, orbitRadius: 0.012, orbitSpeed: 0.006, orbitPhase: 2.4 },
+      { cx: 0.10, cy: 0.40, rx: 0.60, ry: 0.52, r: 6,   g: 182, b: 212, opacity: 0.040, z: 0.04, driftFreqX: 0.008, driftFreqY: 0.006, driftAmpX: 0.022, driftAmpY: 0.014, phase: 0.0 },
+      { cx: 0.88, cy: 0.22, rx: 0.55, ry: 0.52, r: 59,  g: 130, b: 246, opacity: 0.044, z: 0.05, driftFreqX: 0.011, driftFreqY: 0.008, driftAmpX: 0.018, driftAmpY: 0.012, phase: 1.8 },
+      { cx: 0.50, cy: 0.65, rx: 0.75, ry: 0.48, r: 99,  g: 102, b: 241, opacity: 0.024, z: 0.03, driftFreqX: 0.007, driftFreqY: 0.005, driftAmpX: 0.014, driftAmpY: 0.010, phase: 3.1 },
+      { cx: 0.78, cy: 0.80, rx: 0.42, ry: 0.40, r: 139, g:  92, b: 246, opacity: 0.032, z: 0.04, driftFreqX: 0.009, driftFreqY: 0.007, driftAmpX: 0.016, driftAmpY: 0.010, phase: 5.0 },
+      { cx: 0.52, cy: 0.06, rx: 0.48, ry: 0.32, r: 236, g:  72, b: 153, opacity: 0.016, z: 0.03, driftFreqX: 0.006, driftFreqY: 0.005, driftAmpX: 0.012, driftAmpY: 0.008, phase: 2.4 },
     ];
 
-    // ─── LAYER 3: COSMIC DUST ────────────────────────────────────────────────
-    const DUST_COUNT = isMobile ? 18 : 40;
+    // ── LAYER 3: COSMIC DUST (closer to viewer, strong parallax) ─────────────
+    const DUST_COUNT = isMobile ? 16 : 36;
     const dustClouds: DustCloud[] = [];
     for (let i = 0; i < DUST_COUNT; i++) {
+      // Dust is in the foreground — z is higher = reacts strongly to camera
+      const z = 0.35 + rand() * 0.55;
       dustClouds.push({
         x: rand(), y: rand(),
-        size: 0.05 + rand() * 0.18,
-        opacity: 0.005 + rand() * 0.018,
-        depth: 0.05 + rand() * 0.3,
-        vx: (rand() - 0.5) * 0.00002,
-        vy: (rand() - 0.5) * 0.00001,
+        size: 0.06 + rand() * 0.16,
+        opacity: 0.006 + rand() * 0.016,
+        z,
+        vx: (rand() - 0.5) * 0.000018,
+        vy: (rand() - 0.5) * 0.000010,
         angle: rand() * Math.PI * 2,
-        rotSpeed: (rand() - 0.5) * 0.00008,
+        rotSpeed: (rand() - 0.5) * 0.00007,
       });
     }
 
-    // ─── LAYER 4: DISTANT GALAXIES ───────────────────────────────────────────
+    // ── LAYER 4: DISTANT GALAXIES (deepest, z very low → barely move) ────────
     const GALAXY_COUNT = isMobile ? 3 : 6;
     const galaxies: Galaxy[] = [];
-    const galaxyColors = [
-      { r: 255, g: 200, b: 130 }, // warm yellow core
-      { r: 180, g: 220, b: 255 }, // blue-white
-      { r: 255, g: 180, b: 200 }, // pink
-    ];
+    const gColors = [{ r: 255, g: 200, b: 130 }, { r: 180, g: 220, b: 255 }, { r: 255, g: 180, b: 200 }];
     for (let i = 0; i < GALAXY_COUNT; i++) {
-      const c = galaxyColors[i % galaxyColors.length];
+      const c = gColors[i % gColors.length];
       galaxies.push({
-        x: 0.05 + rand() * 0.9,
-        y: 0.05 + rand() * 0.75,
-        size: (isMobile ? 30 : 50) + rand() * 80,
+        x: 0.05 + rand() * 0.90, y: 0.05 + rand() * 0.78,
+        size: (isMobile ? 30 : 48) + rand() * 75,
         tilt: rand() * Math.PI,
-        opacity: 0.04 + rand() * 0.08,
-        depth: 0.08 + rand() * 0.18,
+        opacity: 0.045 + rand() * 0.07,
+        z: 0.01 + rand() * 0.03,  // extremely far — nearly static
         rotation: rand() * Math.PI * 2,
-        rotSpeed: (rand() - 0.5) * 0.00015,
-        arms: Math.floor(2 + rand() * 2),
+        rotSpeed: (rand() - 0.5) * 0.00012,
         r: c.r, g: c.g, b: c.b,
       });
     }
 
-    // ─── LAYER 5: COSMIC RAYS (sporadic streaks of light) ────────────────────
+    // ── LAYER 5: COSMIC RAYS ──────────────────────────────────────────────────
     const rays: CosmoRay[] = [];
-    const MAX_RAYS = isMobile ? 3 : 6;
+    const MAX_RAYS = isMobile ? 3 : 5;
+    const randRay = mkRand(77);
     const spawnRay = () => {
       if (rays.length >= MAX_RAYS) return;
-      const life = 80 + rand() * 120;
-      const angle = rand() * Math.PI * 2;
-      const len = 30 + rand() * 120;
-      const sx = rand() * W;
-      const sy = rand() * H;
+      const angle = randRay() * Math.PI * 2;
+      const len   = 40 + randRay() * 100;
+      const sx = randRay() * W;
+      const sy = randRay() * H;
       rays.push({
         x1: sx, y1: sy,
         x2: sx + Math.cos(angle) * len,
         y2: sy + Math.sin(angle) * len,
-        opacity: 0.0, life: 0, maxLife: life,
-        speed: 0.012 + rand() * 0.02,
+        opacity: 0, life: 0, maxLife: 90 + randRay() * 110,
       });
     };
+    for (let i = 0; i < 2; i++) spawnRay();
+    let rayTimer = 0;
 
-    // Spawn initial rays
-    for (let i = 0; i < Math.floor(MAX_RAYS / 2); i++) spawnRay();
-
-    // ─── RENDER GALAXY ────────────────────────────────────────────────────────
-    const drawGalaxy = (g: Galaxy, elapsed: number, px: number, py: number) => {
+    // ─────────────────────────────────────────────────────────────────────────
+    // RENDER HELPERS
+    // ─────────────────────────────────────────────────────────────────────────
+    const drawGalaxy = (g: Galaxy, px: number, py: number) => {
       const gx = g.x * W + px;
       const gy = g.y * H + py;
-      const rot = g.rotation + elapsed * g.rotSpeed;
-      const a = g.opacity;
-
+      g.rotation += g.rotSpeed;
       ctx.save();
       ctx.translate(gx, gy);
-      ctx.rotate(rot);
-
-      // Core glow
-      const coreGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, g.size * 0.25);
-      coreGrad.addColorStop(0, `rgba(${g.r},${g.g},${g.b},${a * 1.8})`);
-      coreGrad.addColorStop(0.5, `rgba(${g.r},${g.g},${g.b},${a * 0.6})`);
-      coreGrad.addColorStop(1, "rgba(0,0,0,0)");
-      ctx.fillStyle = coreGrad;
-      ctx.beginPath();
-      ctx.arc(0, 0, g.size * 0.25, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Spiral arms (elliptical approach)
+      ctx.rotate(g.rotation);
+      // Core
+      const core = ctx.createRadialGradient(0, 0, 0, 0, 0, g.size * 0.22);
+      core.addColorStop(0, `rgba(${g.r},${g.g},${g.b},${g.opacity * 1.9})`);
+      core.addColorStop(0.5, `rgba(${g.r},${g.g},${g.b},${g.opacity * 0.7})`);
+      core.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = core;
+      ctx.beginPath(); ctx.arc(0, 0, g.size * 0.22, 0, Math.PI * 2); ctx.fill();
+      // Disk
       ctx.save();
-      ctx.scale(1, 0.35); // flatten to ellipse = galaxy tilt illusion
-      const diskGrad = ctx.createRadialGradient(0, 0, g.size * 0.05, 0, 0, g.size);
-      diskGrad.addColorStop(0, `rgba(${g.r},${g.g},${g.b},${a * 0.8})`);
-      diskGrad.addColorStop(0.4, `rgba(${g.r},${g.g},${g.b},${a * 0.3})`);
-      diskGrad.addColorStop(0.75, `rgba(${g.r},${g.g},${g.b},${a * 0.08})`);
-      diskGrad.addColorStop(1, "rgba(0,0,0,0)");
-      ctx.fillStyle = diskGrad;
-      ctx.beginPath();
-      ctx.arc(0, 0, g.size, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.scale(1, 0.32);
+      const disk = ctx.createRadialGradient(0, 0, g.size * 0.04, 0, 0, g.size);
+      disk.addColorStop(0, `rgba(${g.r},${g.g},${g.b},${g.opacity * 0.9})`);
+      disk.addColorStop(0.45, `rgba(${g.r},${g.g},${g.b},${g.opacity * 0.28})`);
+      disk.addColorStop(0.78, `rgba(${g.r},${g.g},${g.b},${g.opacity * 0.07})`);
+      disk.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = disk;
+      ctx.beginPath(); ctx.arc(0, 0, g.size, 0, Math.PI * 2); ctx.fill();
       ctx.restore();
-
       ctx.restore();
     };
 
-    // ─── RENDER DUST CLOUD ────────────────────────────────────────────────────
-    const drawDustCloud = (d: DustCloud, px: number, py: number) => {
+    const drawNebula = (n: Nebula, elapsed: number, px: number, py: number) => {
+      const ox  = Math.sin(elapsed * n.driftFreqX + n.phase) * n.driftAmpX;
+      const oy  = Math.cos(elapsed * n.driftFreqY + n.phase) * n.driftAmpY;
+      const ncx = (n.cx + ox) * W + px;
+      const ncy = (n.cy + oy) * H + py;
+      const rX  = n.rx * W;
+      const rY  = n.ry * H;
+      const rad = Math.max(rX, rY);
+      ctx.save();
+      ctx.translate(ncx, ncy);
+      ctx.scale(rX / rad, rY / rad);
+      const g = ctx.createRadialGradient(0, 0, 0, 0, 0, rad);
+      g.addColorStop(0,    `rgba(${n.r},${n.g},${n.b},${n.opacity * 1.6})`);
+      g.addColorStop(0.38, `rgba(${n.r},${n.g},${n.b},${n.opacity * 0.65})`);
+      g.addColorStop(0.72, `rgba(${n.r},${n.g},${n.b},${n.opacity * 0.15})`);
+      g.addColorStop(1,    "rgba(0,0,0,0)");
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(0, 0, rad, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    };
+
+    const drawDust = (d: DustCloud, px: number, py: number) => {
       const x = d.x * W + px;
       const y = d.y * H + py;
       const r = d.size * Math.min(W, H);
@@ -251,254 +307,251 @@ export default function CosmicBackground() {
       ctx.translate(x, y);
       ctx.rotate(d.angle);
       const g = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
-      g.addColorStop(0, `rgba(180,200,255,${d.opacity * 1.5})`);
-      g.addColorStop(0.5, `rgba(130,160,220,${d.opacity * 0.6})`);
-      g.addColorStop(1, "rgba(0,0,0,0)");
+      g.addColorStop(0,   `rgba(180,200,255,${d.opacity * 1.6})`);
+      g.addColorStop(0.5, `rgba(130,160,220,${d.opacity * 0.55})`);
+      g.addColorStop(1,   "rgba(0,0,0,0)");
       ctx.fillStyle = g;
-      ctx.scale(1, 0.55 + Math.sin(d.angle) * 0.25);
-      ctx.beginPath();
-      ctx.arc(0, 0, r, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.scale(1, 0.50 + Math.abs(Math.sin(d.angle)) * 0.28);
+      ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
       ctx.restore();
     };
 
-    // ─── MAIN RENDER LOOP ─────────────────────────────────────────────────────
-    let rayTimer = 0;
-    const RAND_LOCAL = seededRand(99); // separate seeded rand for rays
+    // ─────────────────────────────────────────────────────────────────────────
+    // MAIN RENDER LOOP
+    // ─────────────────────────────────────────────────────────────────────────
+    let scrollVelSmooth = 0;
 
     const render = (ts: number) => {
-      if (!startRef.current) startRef.current = ts;
-      const elapsed = (ts - startRef.current) * 0.001;
+      if (!t0Ref.current) t0Ref.current = ts;
+      const elapsed = (ts - t0Ref.current) * 0.001;
 
-      // Smooth mouse lerp
-      mouseRef.current.x += (mouseTgtRef.current.x - mouseRef.current.x) * 0.028;
-      mouseRef.current.y += (mouseTgtRef.current.y - mouseRef.current.y) * 0.028;
-      const mx = mouseRef.current.x;
-      const my = mouseRef.current.y;
+      // ── Camera spring physics ──────────────────────────────────────────────
+      // Idle drift: the camera moves even without user input — floating sensation
+      const idleX = Math.sin(elapsed * IDLE_FREQ_X) * IDLE_AMP_X;
+      const idleY = Math.cos(elapsed * IDLE_FREQ_Y) * IDLE_AMP_Y;
+
+      // Target = mouse position (in pixels around center) + idle drift
+      const mx = mouseTargetRef.current.x;
+      const my = mouseTargetRef.current.y;
+      const targetCamX = (mx - 0.5) * CAM_RANGE_X * 2 + idleX;
+      const targetCamY = (my - 0.5) * CAM_RANGE_Y * 2 + idleY;
+
+      // Spring update: accelerate toward target, apply damping
+      cam.vx += (targetCamX - cam.x) * CAM_SPRING;
+      cam.vy += (targetCamY - cam.y) * CAM_SPRING;
+      cam.vx *= CAM_DAMPING;
+      cam.vy *= CAM_DAMPING;
+      cam.x  += cam.vx;
+      cam.y  += cam.vy;
+
+      // Tilt spring (subtle canvas rotation tracks mouse, creates "camera look" feel)
+      const targetTilt = (mx - 0.5) * TILT_RANGE * 2;
+      cam.tiltV += (targetTilt - cam.tilt) * TILT_SPRING;
+      cam.tiltV *= TILT_DAMPING;
+      cam.tilt  += cam.tiltV;
+
+      // ── Scroll travel effect ──────────────────────────────────────────────
+      // Smooth the raw scroll velocity (prevents jitter on slow scroll)
+      scrollVelSmooth += (scrollVelRef.current - scrollVelSmooth) * 0.1;
+      scrollVelRef.current *= 0.85; // decay
       const scrollY = scrollRef.current;
 
-      // Normalised mouse offset (-1 to +1)
-      const mox = (mx - 0.5) * 2;
-      const moy = (my - 0.5) * 2;
-
-      // ── 0. Base void ───────────────────────────────────────────────────────
+      // ── Base void ──────────────────────────────────────────────────────────
       ctx.fillStyle = "#010108";
       ctx.fillRect(0, 0, W, H);
 
-      // ── Ambient deep-space gradient ────────────────────────────────────────
-      const amb = ctx.createRadialGradient(W * 0.5, H * 0.4, 0, W * 0.5, H * 0.5, Math.max(W, H) * 0.9);
-      amb.addColorStop(0, "rgba(3, 8, 30, 0.6)");
-      amb.addColorStop(0.5, "rgba(1, 4, 15, 0.25)");
-      amb.addColorStop(1, "rgba(0, 0, 0, 0)");
+      // Deep space ambient
+      const amb = ctx.createRadialGradient(W * 0.5, H * 0.42, 0, W * 0.5, H * 0.5, Math.max(W, H) * 0.9);
+      amb.addColorStop(0, "rgba(4,10,35,0.55)");
+      amb.addColorStop(0.5, "rgba(2,5,18,0.22)");
+      amb.addColorStop(1, "rgba(0,0,0,0)");
       ctx.fillStyle = amb;
       ctx.fillRect(0, 0, W, H);
 
-      // ── LAYER 4: DISTANT GALAXIES (deepest, slowest parallax) ─────────────
+      // ── Apply camera tilt to entire scene ────────────────────────────────
+      // This is the "camera rotation" feel — the whole scene subtly rotates
+      // when you move your mouse, unlike a flat wallpaper shift.
       ctx.save();
-      ctx.globalCompositeOperation = "screen";
-      galaxies.forEach((g) => {
-        g.rotation += g.rotSpeed;
-        const px = mox * g.depth * 12;
-        const py = moy * g.depth * 8 - scrollY * g.depth * 0.08;
-        drawGalaxy(g, elapsed, px, py);
-      });
-      ctx.restore();
+      ctx.translate(W * 0.5, H * 0.5);
+      ctx.rotate(cam.tilt);
+      ctx.translate(-W * 0.5, -H * 0.5);
 
-      // ── LAYER 2: NEBULA CLOUDS ────────────────────────────────────────────
-      ctx.save();
-      ctx.globalCompositeOperation = "screen";
-      nebulae.forEach((n) => {
-        // Slow orbital drift
-        const ox = Math.sin(elapsed * n.orbitSpeed + n.orbitPhase) * n.orbitRadius;
-        const oy = Math.cos(elapsed * n.orbitSpeed * 0.7 + n.orbitPhase) * n.orbitRadius * 0.6;
-        const px = mox * n.depth * 25;
-        const py = moy * n.depth * 18 - scrollY * n.depth * 0.1;
-
-        const ncx = (n.cx + ox) * W + px;
-        const ncy = (n.cy + oy) * H + py;
-        const radiusX = n.rx * W;
-        const radiusY = n.ry * H;
-        const rad = Math.max(radiusX, radiusY);
-
-        const grad = ctx.createRadialGradient(ncx, ncy, 0, ncx, ncy, rad);
-        grad.addColorStop(0, `rgba(${n.r},${n.g},${n.b},${n.opacity * 1.5})`);
-        grad.addColorStop(0.35, `rgba(${n.r},${n.g},${n.b},${n.opacity * 0.7})`);
-        grad.addColorStop(0.7, `rgba(${n.r},${n.g},${n.b},${n.opacity * 0.2})`);
-        grad.addColorStop(1, "rgba(0,0,0,0)");
-        ctx.fillStyle = grad;
-
-        // Elliptical nebula shape
+        // ── LAYER 4: GALAXIES (z~0.01–0.04 → barely move) ────────────────────
         ctx.save();
-        ctx.translate(ncx, ncy);
-        ctx.scale(radiusX / rad, radiusY / rad);
-        ctx.beginPath();
-        ctx.arc(0, 0, rad, 0, Math.PI * 2);
-        ctx.fillStyle = grad;
-        // need to recalculate grad after scale — use a simple large radial
-        const grad2 = ctx.createRadialGradient(0, 0, 0, 0, 0, rad);
-        grad2.addColorStop(0, `rgba(${n.r},${n.g},${n.b},${n.opacity * 1.5})`);
-        grad2.addColorStop(0.4, `rgba(${n.r},${n.g},${n.b},${n.opacity * 0.6})`);
-        grad2.addColorStop(0.75, `rgba(${n.r},${n.g},${n.b},${n.opacity * 0.15})`);
-        grad2.addColorStop(1, "rgba(0,0,0,0)");
-        ctx.fillStyle = grad2;
-        ctx.fill();
+        ctx.globalCompositeOperation = "screen";
+        galaxies.forEach((g) => {
+          const px = perspOffset(cam.x, g.z);
+          const py = perspOffset(cam.y, g.z) - scrollY * g.z * 0.06;
+          drawGalaxy(g, px, py);
+        });
         ctx.restore();
-      });
-      ctx.restore();
 
-      // ── LAYER 3: COSMIC DUST ───────────────────────────────────────────────
-      ctx.save();
-      ctx.globalCompositeOperation = "screen";
-      dustClouds.forEach((d) => {
-        d.x += d.vx; d.y += d.vy; d.angle += d.rotSpeed;
-        if (d.x < -0.1) d.x = 1.1;
-        if (d.x > 1.1)  d.x = -0.1;
-        if (d.y < -0.1) d.y = 1.1;
-        if (d.y > 1.1)  d.y = -0.1;
-        const px = mox * d.depth * 18;
-        const py = moy * d.depth * 12 - scrollY * d.depth * 0.07;
-        drawDustCloud(d, px, py);
-      });
-      ctx.restore();
+        // ── LAYER 2: NEBULAE (z~0.03–0.05 → very slow, massive structures) ──
+        ctx.save();
+        ctx.globalCompositeOperation = "screen";
+        nebulae.forEach((n) => {
+          const px = perspOffset(cam.x, n.z);
+          const py = perspOffset(cam.y, n.z) - scrollY * n.z * 0.08;
+          drawNebula(n, elapsed, px, py);
+        });
+        ctx.restore();
 
-      // ── LAYER 1: STARFIELD ─────────────────────────────────────────────────
-      stars.forEach((s) => {
-        s.x += s.vx; s.y += s.vy;
-        if (s.x < 0) s.x = 1; if (s.x > 1) s.x = 0;
-        if (s.y < 0) s.y = 1; if (s.y > 1) s.y = 0;
+        // ── LAYER 1: STARFIELD ─────────────────────────────────────────────
+        // Stars use full perspective projection.
+        // Near stars (z~0.9) move ~10x more than far stars (z~0.05).
+        // This creates genuine 3D depth perception.
+        const warpBrightness = Math.min(Math.abs(scrollVelSmooth) * 0.04, 0.35);
+        stars.forEach((s) => {
+          // Drift
+          s.x += s.vx; s.y += s.vy;
+          if (s.x < 0) s.x = 1; if (s.x > 1) s.x = 0;
+          if (s.y < 0) s.y = 1; if (s.y > 1) s.y = 0;
 
-        // Depth-scaled parallax
-        const px = mox * s.z * 35;
-        const py = moy * s.z * 24 - scrollY * s.z * 0.45;
-        const sx = ((s.x * W + px) % W + W) % W;
-        const sy = ((s.y * H + py) % H + H) % H;
+          // Perspective parallax — THE KEY to 3D feel
+          const px = perspOffset(cam.x, s.z);
+          // Scroll travel: near stars fall behind faster (you're flying forward)
+          const py = perspOffset(cam.y, s.z) - scrollY * s.z * 0.55;
 
-        let b = s.brightness;
-        if (s.twinkleSpeed > 0) {
-          b *= 0.55 + 0.45 * Math.sin(elapsed * s.twinkleSpeed + s.twinklePhase);
-        }
+          const sx = ((s.x * W + px) % W + W) % W;
+          const sy = ((s.y * H + py) % H + H) % H;
 
-        let r = 255, g = 255, bl = 255;
-        if (s.color === 1) { r = 210; g = 230; bl = 255; }      // blue-white
-        else if (s.color === 2) { r = 255; g = 230; bl = 180; } // warm
+          // Twinkle
+          let b = s.brightness;
+          if (s.twinkleSpeed > 0) {
+            b *= 0.55 + 0.45 * Math.sin(elapsed * s.twinkleSpeed + s.twinklePhase);
+          }
+          // Warp flash: bright pulse when scrolling fast
+          b = Math.min(1, b + warpBrightness * s.z);
 
-        // Cross-diffraction spike for bright near stars
-        if (s.z > 0.82 && b > 0.25) {
-          const spikeLen = s.size * 3.5;
-          ctx.strokeStyle = `rgba(${r},${g},${bl},${b * 0.35})`;
-          ctx.lineWidth = 0.5;
+          // Star color
+          let sr = 255, sg = 255, sb = 255;
+          if (s.colorType === 1) { sr = 210; sg = 228; sb = 255; }
+          else if (s.colorType === 2) { sr = 255; sg = 228; sb = 180; }
+
+          // Near bright stars: diffraction spikes + halo (adds to 3D sense of scale)
+          if (s.z > 0.80 && b > 0.20) {
+            const spike = s.size * 4.5;
+            ctx.save();
+            ctx.strokeStyle = `rgba(${sr},${sg},${sb},${b * 0.28})`;
+            ctx.lineWidth = 0.6;
+            ctx.beginPath();
+            ctx.moveTo(sx - spike, sy); ctx.lineTo(sx + spike, sy);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(sx, sy - spike * 0.7); ctx.lineTo(sx, sy + spike * 0.7);
+            ctx.stroke();
+            ctx.restore();
+          }
+          if (s.z > 0.72 && b > 0.14) {
+            const halo = ctx.createRadialGradient(sx, sy, 0, sx, sy, s.size * 5);
+            halo.addColorStop(0, `rgba(${sr},${sg},${sb},${b * 0.16})`);
+            halo.addColorStop(1, "rgba(0,0,0,0)");
+            ctx.fillStyle = halo;
+            ctx.beginPath(); ctx.arc(sx, sy, s.size * 5, 0, Math.PI * 2); ctx.fill();
+          }
+
+          ctx.fillStyle = `rgba(${sr},${sg},${sb},${b})`;
+          ctx.beginPath(); ctx.arc(sx, sy, s.size, 0, Math.PI * 2); ctx.fill();
+        });
+
+        // ── LAYER 3: DUST (closer than stars → strong parallax) ──────────────
+        ctx.save();
+        ctx.globalCompositeOperation = "screen";
+        dustClouds.forEach((d) => {
+          d.x += d.vx; d.y += d.vy; d.angle += d.rotSpeed;
+          if (d.x < -0.1) d.x = 1.1; if (d.x > 1.1) d.x = -0.1;
+          if (d.y < -0.1) d.y = 1.1; if (d.y > 1.1) d.y = -0.1;
+          const px = perspOffset(cam.x, d.z);
+          const py = perspOffset(cam.y, d.z) - scrollY * d.z * 0.4;
+          drawDust(d, px, py);
+        });
+        ctx.restore();
+
+        // ── LAYER 5: COSMIC RAYS ───────────────────────────────────────────
+        rayTimer += 0.016;
+        if (rayTimer > 4 + randRay() * 9) { rayTimer = 0; spawnRay(); }
+        ctx.save();
+        ctx.globalCompositeOperation = "screen";
+        for (let i = rays.length - 1; i >= 0; i--) {
+          const ray = rays[i];
+          ray.life++;
+          const p   = ray.life / ray.maxLife;
+          const env = p < 0.15 ? p / 0.15 : p > 0.72 ? (1 - p) / 0.28 : 1;
+          ray.opacity = 0.10 * env;
+          if (ray.life >= ray.maxLife) { rays.splice(i, 1); continue; }
+          const g = ctx.createLinearGradient(ray.x1, ray.y1, ray.x2, ray.y2);
+          g.addColorStop(0,   "rgba(200,230,255,0)");
+          g.addColorStop(0.4, `rgba(200,230,255,${ray.opacity})`);
+          g.addColorStop(0.6, `rgba(255,255,255,${ray.opacity * 1.5})`);
+          g.addColorStop(1,   "rgba(200,230,255,0)");
+          ctx.strokeStyle = g;
+          ctx.lineWidth = 0.9;
           ctx.beginPath();
-          ctx.moveTo(sx - spikeLen, sy); ctx.lineTo(sx + spikeLen, sy);
+          ctx.moveTo(ray.x1, ray.y1); ctx.lineTo(ray.x2, ray.y2);
           ctx.stroke();
-          ctx.beginPath();
-          ctx.moveTo(sx, sy - spikeLen); ctx.lineTo(sx, sy + spikeLen);
-          ctx.stroke();
         }
+        ctx.restore();
 
-        // Glow halo for bright stars
-        if (s.z > 0.7 && b > 0.15) {
-          const halo = ctx.createRadialGradient(sx, sy, 0, sx, sy, s.size * 4);
-          halo.addColorStop(0, `rgba(${r},${g},${bl},${b * 0.18})`);
-          halo.addColorStop(1, "rgba(0,0,0,0)");
-          ctx.fillStyle = halo;
-          ctx.beginPath();
-          ctx.arc(sx, sy, s.size * 4, 0, Math.PI * 2);
-          ctx.fill();
-        }
-
-        ctx.fillStyle = `rgba(${r},${g},${bl},${b})`;
-        ctx.beginPath();
-        ctx.arc(sx, sy, s.size, 0, Math.PI * 2);
-        ctx.fill();
-      });
-
-      // ── LAYER 5: COSMIC RAYS ───────────────────────────────────────────────
-      rayTimer += 0.016;
-      if (rayTimer > 3.5 + RAND_LOCAL() * 8) {
-        rayTimer = 0;
-        spawnRay();
-      }
-      ctx.save();
-      ctx.globalCompositeOperation = "screen";
-      for (let i = rays.length - 1; i >= 0; i--) {
-        const ray = rays[i];
-        ray.life++;
-        const progress = ray.life / ray.maxLife;
-        const envelope = progress < 0.2 ? progress / 0.2 : progress > 0.75 ? (1 - progress) / 0.25 : 1;
-        ray.opacity = 0.12 * envelope;
-        if (ray.life >= ray.maxLife) { rays.splice(i, 1); continue; }
-        const grad = ctx.createLinearGradient(ray.x1, ray.y1, ray.x2, ray.y2);
-        grad.addColorStop(0, `rgba(200,230,255,0)`);
-        grad.addColorStop(0.4, `rgba(200,230,255,${ray.opacity})`);
-        grad.addColorStop(0.6, `rgba(255,255,255,${ray.opacity * 1.4})`);
-        grad.addColorStop(1, `rgba(200,230,255,0)`);
-        ctx.strokeStyle = grad;
-        ctx.lineWidth = 0.8;
-        ctx.beginPath();
-        ctx.moveTo(ray.x1, ray.y1);
-        ctx.lineTo(ray.x2, ray.y2);
-        ctx.stroke();
-      }
+      // ── Restore tilt transform ─────────────────────────────────────────────
       ctx.restore();
 
-      // ── SOFT HERO ILLUMINATION ─────────────────────────────────────────────
-      // Keeps the hero text zone readable with gentle backlighting
-      const heroX = W * 0.5 + mox * 20;
-      const heroY = H * 0.32 + moy * 14 - scrollY * 0.18;
-      const heroR = Math.max(W, H) * 0.55;
-      const heroGlow = ctx.createRadialGradient(heroX, heroY, 0, heroX, heroY, heroR);
-      heroGlow.addColorStop(0, "rgba(8,30,60, 0.45)");
-      heroGlow.addColorStop(0.45, "rgba(4,15,35, 0.18)");
-      heroGlow.addColorStop(1, "rgba(0,0,0,0)");
-      ctx.fillStyle = heroGlow;
+      // ── CONTENT BACKLIGHTING (applied after tilt, fixed to screen space) ───
+      // Hero section — soft dark-blue fill improves text readability
+      const heroX = W * 0.5 + cam.x * 0.4;
+      const heroY = H * 0.30 + cam.y * 0.3 - scrollY * 0.15;
+      const heroRad = Math.max(W, H) * 0.55;
+      const hBg = ctx.createRadialGradient(heroX, heroY, 0, heroX, heroY, heroRad);
+      hBg.addColorStop(0, "rgba(5,15,45,0.50)");
+      hBg.addColorStop(0.4, "rgba(3,8,25,0.18)");
+      hBg.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = hBg;
       ctx.fillRect(0, 0, W, H);
 
-      // Cyan accent on hero
-      const cyanGlow = ctx.createRadialGradient(heroX, heroY, 0, heroX, heroY, heroR * 0.7);
-      cyanGlow.addColorStop(0, "rgba(6,182,212, 0.04)");
-      cyanGlow.addColorStop(1, "rgba(0,0,0,0)");
+      // Subtle cyan accent on hero
       ctx.save();
       ctx.globalCompositeOperation = "screen";
-      ctx.fillStyle = cyanGlow;
+      const hCyan = ctx.createRadialGradient(heroX, heroY, 0, heroX, heroY, heroRad * 0.65);
+      hCyan.addColorStop(0, "rgba(6,182,212,0.042)");
+      hCyan.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = hCyan;
       ctx.fillRect(0, 0, W, H);
       ctx.restore();
 
-      // EVE violet accent (violet reserved for EVE flagship)
-      const eveX = W * 0.5 + mox * 14;
-      const eveY = H * 0.88 + moy * 10 - scrollY * 0.25;
-      const eveGlow = ctx.createRadialGradient(eveX, eveY, 0, eveX, eveY, Math.max(W, H) * 0.4);
-      eveGlow.addColorStop(0, "rgba(139,92,246, 0.04)");
-      eveGlow.addColorStop(0.5, "rgba(79,70,229, 0.015)");
-      eveGlow.addColorStop(1, "rgba(0,0,0,0)");
+      // EVE violet accent (violet reserved for EVE)
+      const eveX = W * 0.5 + cam.x * 0.3;
+      const eveY = H * 0.88 + cam.y * 0.25 - scrollY * 0.28;
       ctx.save();
       ctx.globalCompositeOperation = "screen";
-      ctx.fillStyle = eveGlow;
+      const evG = ctx.createRadialGradient(eveX, eveY, 0, eveX, eveY, Math.max(W, H) * 0.38);
+      evG.addColorStop(0, "rgba(139,92,246,0.042)");
+      evG.addColorStop(0.5, "rgba(79,70,229,0.014)");
+      evG.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = evG;
       ctx.fillRect(0, 0, W, H);
       ctx.restore();
 
-      // ── LENS SCATTER / atmospheric glow at screen edges ────────────────────
+      // Lens bloom (upper-right, follows camera slightly)
       ctx.save();
       ctx.globalCompositeOperation = "screen";
-      // Top-right lens bloom
-      const bloomX = W * (0.75 + mox * 0.02);
-      const bloomY = H * (0.05 + moy * 0.01);
-      const bloomR = Math.max(W, H) * 0.35;
-      const bloom = ctx.createRadialGradient(bloomX, bloomY, 0, bloomX, bloomY, bloomR);
-      bloom.addColorStop(0, "rgba(180, 220, 255, 0.018)");
-      bloom.addColorStop(0.5, "rgba(100, 160, 255, 0.006)");
+      const bloomX = W * 0.76 + cam.x * 0.2;
+      const bloomY = H * 0.06  + cam.y * 0.15;
+      const bloom  = ctx.createRadialGradient(bloomX, bloomY, 0, bloomX, bloomY, Math.max(W, H) * 0.32);
+      bloom.addColorStop(0, "rgba(180,220,255,0.018)");
+      bloom.addColorStop(0.5, "rgba(100,160,255,0.006)");
       bloom.addColorStop(1, "rgba(0,0,0,0)");
       ctx.fillStyle = bloom;
-      ctx.beginPath();
-      ctx.arc(bloomX, bloomY, bloomR, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.fillRect(0, 0, W, H);
       ctx.restore();
 
-      // ── VIGNETTE (cinematic framing) ───────────────────────────────────────
-      const vig = ctx.createRadialGradient(W * 0.5, H * 0.5, Math.min(W, H) * 0.25, W * 0.5, H * 0.5, Math.max(W, H) * 0.82);
-      vig.addColorStop(0, "rgba(0,0,0,0)");
-      vig.addColorStop(0.55, "rgba(0,0,0,0.08)");
-      vig.addColorStop(0.82, "rgba(0,0,0,0.32)");
-      vig.addColorStop(1, "rgba(0,0,0,0.68)");
+      // ── CINEMATIC VIGNETTE ─────────────────────────────────────────────────
+      // Slightly shifts with camera to reinforce 3D perspective
+      const vigX = W * 0.5 + cam.x * 0.12;
+      const vigY = H * 0.5 + cam.y * 0.08;
+      const vig  = ctx.createRadialGradient(vigX, vigY, Math.min(W, H) * 0.22, vigX, vigY, Math.max(W, H) * 0.84);
+      vig.addColorStop(0,    "rgba(0,0,0,0)");
+      vig.addColorStop(0.52, "rgba(0,0,0,0.07)");
+      vig.addColorStop(0.80, "rgba(0,0,0,0.30)");
+      vig.addColorStop(1,    "rgba(0,0,0,0.68)");
       ctx.fillStyle = vig;
       ctx.fillRect(0, 0, W, H);
 
@@ -514,7 +567,6 @@ export default function CosmicBackground() {
 
   return (
     <div className="fixed inset-0 w-full h-full pointer-events-none select-none -z-40 print:hidden overflow-hidden">
-      {/* Solid base colour so canvas background is never transparent */}
       <div className="absolute inset-0 bg-[#010108] -z-50" />
       <canvas ref={canvasRef} className="w-full h-full block" id="cosmic-canvas" />
     </div>
