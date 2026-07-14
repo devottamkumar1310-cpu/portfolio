@@ -86,7 +86,7 @@ function CertificatesListView({ onPreview }: CertificatesListViewProps) {
 
   return (
     <section id="certificates" className="py-16 border-t border-white/5 print:hidden text-left relative z-10">
-      <div className="max-w-4xl mx-auto space-y-12">
+      <div className="max-w-[1200px] mx-auto space-y-12">
         
         {/* Header section - Always Left Aligned */}
         <motion.div 
@@ -94,7 +94,7 @@ function CertificatesListView({ onPreview }: CertificatesListViewProps) {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-50px" }}
           transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-          className="text-left space-y-4 max-w-4xl mx-auto"
+          className="text-left space-y-4 w-full"
         >
           <div className="space-y-2">
             <span className="text-[10px] font-mono text-cyan-400 uppercase tracking-widest block font-bold">/ Proven Capabilities</span>
@@ -114,7 +114,7 @@ function CertificatesListView({ onPreview }: CertificatesListViewProps) {
             <p className="text-gray-500 text-sm font-sans">No certificates added yet.</p>
           </div>
         ) : isSingle ? (
-          <div className="flex justify-center max-w-4xl mx-auto w-full">
+          <div className="flex justify-center w-full">
             <div className="w-full max-w-2xl flex">
               <CertificateCard 
                 certificate={CERTIFICATES[0]} 
@@ -123,7 +123,7 @@ function CertificatesListView({ onPreview }: CertificatesListViewProps) {
             </div>
           </div>
         ) : (
-          <div className="flex flex-wrap justify-center gap-6 sm:gap-8 max-w-4xl mx-auto">
+          <div className="flex flex-wrap justify-center gap-6 sm:gap-8 w-full">
             {CERTIFICATES.map((cert, index) => (
               <div 
                 key={index} 
@@ -158,7 +158,7 @@ export function CertificateCard({ certificate, onPreview }: CertificateCardProps
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-50px" }}
       transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-      className="group rounded-2xl border border-white/5 bg-white/[0.015] hover:border-cyan-500/30 hover:bg-white/[0.025] transition-all duration-300 flex flex-col justify-between overflow-hidden shadow-lg"
+      className="group liquid-glass-card card-cert rounded-[24px] flex flex-col justify-between overflow-hidden"
     >
       <div className="space-y-4">
         {/* Certificate Image Frame */}
@@ -222,7 +222,7 @@ export function CertificateCard({ certificate, onPreview }: CertificateCardProps
           className="flex-1 inline-flex items-center justify-center space-x-1.5 px-4 py-2.5 rounded-xl bg-white text-black hover:bg-gray-150 text-xs font-bold transition-all cursor-pointer"
         >
           <Eye className="h-4 w-4" />
-          <span>Preview Certificate</span>
+          <span>Preview</span>
         </button>
 
         <a
@@ -232,7 +232,7 @@ export function CertificateCard({ certificate, onPreview }: CertificateCardProps
           className="flex-1 inline-flex items-center justify-center space-x-1.5 px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 border border-white/10 text-xs font-bold transition-all cursor-pointer"
         >
           <FileDown className="h-4 w-4 text-gray-400" />
-          <span>Download PDF</span>
+          <span>Download</span>
         </a>
       </div>
     </motion.div>
@@ -249,7 +249,7 @@ interface CertificateDetailViewProps {
 
 function CertificateDetailView({ certificate, onPreview }: CertificateDetailViewProps) {
   return (
-    <div className="py-8 space-y-10 text-left relative z-10">
+    <div className="py-8 space-y-10 text-left relative z-10 max-w-[1200px] mx-auto w-full">
       
       {/* Back button */}
       <div>
@@ -272,7 +272,7 @@ function CertificateDetailView({ certificate, onPreview }: CertificateDetailView
           </span>
           <div 
             onClick={onPreview}
-            className="rounded-2xl border border-white/10 bg-black/40 overflow-hidden aspect-[1.414] shadow-2xl relative group cursor-zoom-in"
+            className="rounded-[24px] border border-white/10 bg-black/40 overflow-hidden aspect-[1.414] shadow-2xl relative group cursor-zoom-in"
           >
             <img 
               src={certificate.image} 
@@ -308,7 +308,7 @@ function CertificateDetailView({ certificate, onPreview }: CertificateDetailView
           </div>
 
           {/* Quick info card */}
-          <div className="p-5 rounded-2xl bg-white/[0.012] border border-white/5 space-y-4">
+          <div className="p-5 rounded-[24px] liquid-glass-card card-cert space-y-4">
             <div className="grid grid-cols-2 gap-4 text-xs font-sans">
               <div>
                 <span className="text-[9px] font-mono text-gray-500 uppercase font-bold block">Organization</span>
@@ -343,7 +343,7 @@ function CertificateDetailView({ certificate, onPreview }: CertificateDetailView
               <span className="text-[9px] font-mono text-gray-500 uppercase tracking-widest font-bold block">
                 Description
               </span>
-              <p className="text-xs sm:text-sm text-gray-350 leading-relaxed font-sans">
+              <p className="text-xs sm:text-sm text-gray-355 leading-relaxed font-sans">
                 {certificate.description}
               </p>
             </div>
@@ -383,7 +383,7 @@ function CertificateDetailView({ certificate, onPreview }: CertificateDetailView
                 href={certificate.pdf}
                 target="_blank"
                 rel="noreferrer"
-                className="flex-1 inline-flex items-center justify-center space-x-2 px-5 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-gray-350 border border-white/10 font-bold text-xs transition-all cursor-pointer"
+                className="flex-1 inline-flex items-center justify-center space-x-2 px-5 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-gray-355 border border-white/10 font-bold text-xs transition-all cursor-pointer"
               >
                 <FileDown className="h-3.5 w-3.5" />
                 <span>Download PDF</span>

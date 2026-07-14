@@ -75,7 +75,7 @@ export default function Resume() {
 
   return (
     <section id="executive-resume" className="py-10 text-left relative">
-      <div className="max-w-3xl mx-auto space-y-10">
+      <div className="max-w-[1200px] mx-auto space-y-10">
         
         {/* Page header (hidden during printing) */}
         <motion.div 

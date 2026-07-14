@@ -13,7 +13,7 @@ export default function Contact() {
     if (!formState.name || !formState.email || !formState.message) return;
 
     setIsSubmitting(true);
-    // Simulate real network request
+    // Simulate network request
     setTimeout(() => {
       setIsSubmitting(false);
       setIsSubmitted(true);
@@ -23,7 +23,7 @@ export default function Contact() {
 
   return (
     <section id="contact" className="py-12 border-t border-white/5 print:hidden text-left">
-      <div className="max-w-4xl mx-auto space-y-8">
+      <div className="max-w-[1200px] mx-auto space-y-8">
         
         {/* Header headings */}
         <motion.div 
@@ -51,7 +51,7 @@ export default function Contact() {
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true, margin: "-50px" }}
             transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-            className="md:col-span-5 p-6 rounded-2xl liquid-glass-contact flex flex-col justify-between space-y-6"
+            className="md:col-span-5 p-6 rounded-[24px] liquid-glass-card card-contact flex flex-col justify-between space-y-6"
           >
             <div className="space-y-4">
               <h3 className="text-sm font-semibold text-white font-sans text-left">Direct Channels</h3>
@@ -71,7 +71,7 @@ export default function Contact() {
                 </div>
 
                 <div className="flex items-center space-x-3 p-3 rounded-xl bg-white/[0.01] border border-white/5 text-xs liquid-glass-contact-item">
-                  <Github className="h-4.5 w-4.5 text-blue-400 shrink-0" />
+                  <Github className="h-4.5 w-4.5 text-violet-400 shrink-0" />
                   <div className="truncate">
                     <span className="text-[9px] font-mono text-gray-500 uppercase block font-bold leading-normal">GitHub Profile</span>
                     <a href={BIO_SUMMARY.github} target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-blue-400 transition-colors truncate block">
@@ -100,7 +100,7 @@ export default function Contact() {
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true, margin: "-50px" }}
             transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-            className="md:col-span-7 p-6 rounded-2xl liquid-glass-contact flex flex-col justify-center"
+            className="md:col-span-7 p-6 rounded-[24px] liquid-glass-card card-contact flex flex-col justify-center"
           >
             {isSubmitted ? (
                <div className="flex flex-col items-center justify-center py-10 text-center space-y-4">
@@ -133,7 +133,7 @@ export default function Contact() {
                       value={formState.name}
                       onChange={(e) => setFormState({ ...formState, name: e.target.value })}
                       placeholder="Rachel Green"
-                      className="w-full bg-[#050505] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-gray-205 placeholder-zinc-700 focus:outline-none focus:border-cyan-500/80 focus:shadow-[0_0_15px_-3px_rgba(6,182,212,0.35)] focus:ring-1 focus:ring-cyan-500/20 transition-all duration-300"
+                      className="w-full bg-[#020308] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-gray-205 placeholder-zinc-700 focus:outline-none focus:border-cyan-500/80 focus:shadow-[0_0_15px_-3px_rgba(6,182,212,0.35)] focus:ring-1 focus:ring-cyan-500/20 transition-all duration-300"
                     />
                   </div>
                   
@@ -144,7 +144,7 @@ export default function Contact() {
                       value={formState.company}
                       onChange={(e) => setFormState({ ...formState, company: e.target.value })}
                       placeholder="e.g. Acme Corp"
-                      className="w-full bg-[#050505] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-gray-205 placeholder-zinc-700 focus:outline-none focus:border-cyan-500/80 focus:shadow-[0_0_15px_-3px_rgba(6,182,212,0.35)] focus:ring-1 focus:ring-cyan-500/20 transition-all duration-300"
+                      className="w-full bg-[#020308] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-gray-205 placeholder-zinc-700 focus:outline-none focus:border-cyan-500/80 focus:shadow-[0_0_15px_-3px_rgba(6,182,212,0.35)] focus:ring-1 focus:ring-cyan-500/20 transition-all duration-300"
                     />
                   </div>
                 </div>
@@ -157,7 +157,7 @@ export default function Contact() {
                     value={formState.email}
                     onChange={(e) => setFormState({ ...formState, email: e.target.value })}
                     placeholder="rachel@company.com"
-                    className="w-full bg-[#050505] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-gray-205 placeholder-zinc-700 focus:outline-none focus:border-cyan-500/80 focus:shadow-[0_0_15px_-3px_rgba(6,182,212,0.35)] focus:ring-1 focus:ring-cyan-500/20 transition-all duration-300"
+                    className="w-full bg-[#020308] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-gray-205 placeholder-zinc-700 focus:outline-none focus:border-cyan-500/80 focus:shadow-[0_0_15px_-3px_rgba(6,182,212,0.35)] focus:ring-1 focus:ring-cyan-500/20 transition-all duration-300"
                   />
                 </div>
 
@@ -169,7 +169,7 @@ export default function Contact() {
                     value={formState.message}
                     onChange={(e) => setFormState({ ...formState, message: e.target.value })}
                     placeholder="Describe your project, question, or opportunity..."
-                    className="w-full bg-[#050505] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-gray-205 placeholder-zinc-700 focus:outline-none focus:border-cyan-500/80 focus:shadow-[0_0_15px_-3px_rgba(6,182,212,0.35)] focus:ring-1 focus:ring-cyan-500/20 transition-all duration-300 h-28 leading-relaxed resize-none"
+                    className="w-full bg-[#020308] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-gray-205 placeholder-zinc-700 focus:outline-none focus:border-cyan-500/80 focus:shadow-[0_0_15px_-3px_rgba(6,182,212,0.35)] focus:ring-1 focus:ring-cyan-500/20 transition-all duration-300 h-28 leading-relaxed resize-none"
                   />
                 </div>
 

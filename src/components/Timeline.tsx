@@ -9,10 +9,10 @@ export default function Timeline() {
     const icons = [
       <BookOpen className="h-3.5 w-3.5 text-blue-400" />,
       <Code className="h-3.5 w-3.5 text-cyan-400" />,
-      <Rocket className="h-3.5 w-3.5 text-orange-400" />,
+      <Rocket className="h-3.5 w-3.5 text-pink-400" />,
       <Brain className="h-3.5 w-3.5 text-cyan-400" />,
       <Cpu className="h-3.5 w-3.5 text-emerald-400" />,
-      <Sparkles className="h-3.5 w-3.5 text-blue-450" />,
+      <Sparkles className="h-3.5 w-3.5 text-indigo-400" />,
       <Laptop className="h-3.5 w-3.5 text-cyan-400" />,
       <Compass className="h-3.5 w-3.5 text-blue-400" />,
     ];
@@ -21,7 +21,7 @@ export default function Timeline() {
 
   return (
     <section id="journey" className="py-12 border-t border-white/5 print:hidden">
-      <div className="max-w-4xl mx-auto space-y-8">
+      <div className="max-w-[1200px] mx-auto space-y-8">
         
         {/* Section Header */}
         <motion.div 
@@ -54,7 +54,7 @@ export default function Timeline() {
             >
               
               {/* Dot bullet indicator */}
-              <div className="absolute -left-[14px] top-1.5 w-7 h-7 rounded-full bg-[#050505] border border-white/10 flex items-center justify-center shadow-lg">
+              <div className="absolute -left-[14px] top-1.5 w-7 h-7 rounded-full bg-[#020308] border border-white/10 flex items-center justify-center shadow-lg">
                 {getTimelineIcon(idx)}
               </div>
 

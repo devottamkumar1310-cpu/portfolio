@@ -88,7 +88,7 @@ function ShowcaseGrid() {
 
   return (
     <section id="projects" className="py-12 border-t border-white/5 text-left relative z-10">
-      <div className="max-w-4xl mx-auto space-y-12">
+      <div className="max-w-[1200px] mx-auto space-y-12">
         
         {/* Section Header */}
         <motion.div 
@@ -122,15 +122,15 @@ function ShowcaseGrid() {
               <span className="text-[10px] font-mono text-gray-500 uppercase tracking-widest font-bold block">
                 Featured Product
               </span>
-              <div className="relative rounded-3xl overflow-visible group transition-all duration-300">
+              <div className="relative rounded-[24px] overflow-visible group transition-all duration-300">
                 {/* Layer 1: Multi-layered background glow */}
                 <div className="absolute -top-12 -right-12 w-96 h-96 bg-cyan-500/10 rounded-full blur-[100px] pointer-events-none -z-10 group-hover:bg-cyan-500/15 transition-all duration-300" />
                 <div className="absolute -bottom-16 -left-16 w-80 h-80 bg-violet-600/5 rounded-full blur-[85px] pointer-events-none -z-10 group-hover:bg-violet-600/10 transition-all duration-300" />
 
                 {/* Layer 2: Glass container with subtle animated gradient border and premium shadow */}
-                <div className="liquid-glass-featured rounded-3xl p-6 sm:p-8 md:p-10 relative overflow-hidden">
+                <div className="liquid-glass-card card-ai rounded-[24px] p-6 sm:p-8 md:p-10 relative overflow-hidden">
                   {/* Subtle inner card border highlight */}
-                  <div className="absolute inset-0 border border-white/5 rounded-3xl pointer-events-none" />
+                  <div className="absolute inset-0 border border-white/5 rounded-[24px] pointer-events-none" />
 
                   {/* Layer 3: Content layer (high readability) */}
                   <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 relative z-10">
@@ -225,7 +225,7 @@ function ShowcaseGrid() {
                 <span className="text-[10px] font-mono text-gray-500 uppercase tracking-widest font-bold block">
                   Products
                 </span>
-                <div className="flex-1 rounded-2xl border border-white/5 bg-white/[0.015] p-6 hover:border-white/10 hover:bg-white/[0.02] transition-all duration-300 flex flex-col justify-between group">
+                <div className="flex-1 rounded-[24px] liquid-glass-card card-saas p-6 flex flex-col justify-between group">
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <span className="px-2 py-0.5 rounded bg-white/[0.03] border border-white/10 text-[9px] text-gray-400 font-mono">
@@ -291,7 +291,7 @@ function ShowcaseGrid() {
                 <span className="text-[10px] font-mono text-gray-500 uppercase tracking-widest font-bold block">
                   Achievements & Challenges
                 </span>
-                <div className="flex-1 rounded-2xl border border-violet-500/10 bg-violet-950/[0.02] p-6 hover:border-violet-500/25 hover:bg-violet-950/[0.04] transition-all duration-300 flex flex-col justify-between group shadow-[0_0_30px_-15px_rgba(139,92,246,0.05)]">
+                <div className="flex-1 rounded-[24px] liquid-glass-card card-backend p-6 flex flex-col justify-between group">
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-1.5">

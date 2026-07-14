@@ -19,7 +19,7 @@ export default function CurrentlyBuilding() {
 
   return (
     <section className="py-12 border-t border-white/5 text-left">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-[1200px] mx-auto">
         {/* Title */}
         <motion.div 
           initial={{ opacity: 0, y: 12 }}
@@ -42,7 +42,7 @@ export default function CurrentlyBuilding() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-50px" }}
           transition={{ duration: 0.6, delay: 0.05, ease: [0.16, 1, 0.3, 1] }}
-          className="relative p-6 sm:p-8 rounded-2xl bg-gradient-to-br from-white/[0.015] via-transparent to-transparent border border-white/5 hover:border-white/10 transition-colors duration-300 overflow-hidden"
+          className="relative p-6 sm:p-8 rounded-[24px] liquid-glass-card card-saas overflow-hidden"
         >
           {/* Subtle decorative atmosphere */}
           <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-500/5 rounded-full blur-[60px] pointer-events-none -z-10" />
@@ -78,7 +78,7 @@ export default function CurrentlyBuilding() {
                 {activeProj.techStack.map((tech) => (
                   <span
                     key={tech}
-                    className="px-2.5 py-1 rounded bg-white/[0.02] border border-white/5 text-xs text-gray-350 font-mono"
+                    className="px-2.5 py-1 rounded bg-white/[0.02] border border-white/5 text-xs text-gray-355 font-mono"
                   >
                     {tech}
                   </span>
@@ -87,7 +87,7 @@ export default function CurrentlyBuilding() {
             </div>
 
             {/* Current Focus Bullets Card */}
-            <div className="w-full md:w-80 p-5 rounded-xl bg-white/[0.01] border border-white/5 space-y-3.5 shrink-0">
+            <div className="w-full md:w-80 p-5 rounded-[20px] bg-white/[0.01] border border-white/5 space-y-3.5 shrink-0">
               <div className="flex items-center space-x-2 text-xs font-mono text-gray-400 font-bold border-b border-white/5 pb-2">
                 <Sparkles className="h-3.5 w-3.5 text-cyan-400" />
                 <span>Current Focus</span>

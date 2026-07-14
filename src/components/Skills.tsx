@@ -6,30 +6,33 @@ export default function Skills() {
   const getCategoryIcon = (title: string) => {
     const t = title.toLowerCase();
     if (t.includes("languages") || t.includes("programming")) return <Code2 className="h-4.5 w-4.5 text-cyan-400" />;
-    if (t.includes("backend")) return <Server className="h-4.5 w-4.5 text-blue-400" />;
-    if (t.includes("databases") || t.includes("data")) return <Database className="h-4.5 w-4.5 text-emerald-400" />;
+    if (t.includes("backend")) return <Server className="h-4.5 w-4.5 text-violet-400" />;
+    if (t.includes("databases") || t.includes("data")) return <Database className="h-4.5 w-4.5 text-indigo-400" />;
     if (t.includes("frontend") || t.includes("cloud")) return <Layers className="h-4.5 w-4.5 text-cyan-400" />;
-    if (t.includes("computer science") || t.includes("cs") || t.includes("ai")) return <Brain className="h-4.5 w-4.5 text-blue-400" />;
+    if (t.includes("computer science") || t.includes("cs") || t.includes("ai")) return <Brain className="h-4.5 w-4.5 text-pink-400" />;
     return <Terminal className="h-4.5 w-4.5 text-cyan-400" />;
   };
 
-  const getCategoryHoverClass = (title: string) => {
+  const getCategoryCardClass = (title: string) => {
     const t = title.toLowerCase();
     if (t.includes("languages") || t.includes("programming")) {
-      return "hover:border-cyan-500/40 hover:shadow-[0_0_16px_rgba(6,182,212,0.2)] hover:shadow-cyan-500/10";
+      return "card-saas"; // Cyan glow
     }
     if (t.includes("backend")) {
-      return "hover:border-blue-500/40 hover:shadow-[0_0_16px_rgba(59,130,246,0.2)] hover:shadow-blue-500/10";
+      return "card-backend"; // Violet glow
     }
     if (t.includes("databases") || t.includes("data")) {
-      return "hover:border-emerald-500/40 hover:shadow-[0_0_16px_rgba(16,185,129,0.2)] hover:shadow-emerald-500/10";
+      return "card-data"; // Blue-Violet glow
     }
-    return "hover:border-cyan-500/40 hover:shadow-[0_0_16px_rgba(6,182,212,0.2)] hover:shadow-cyan-500/10";
+    if (t.includes("computer science") || t.includes("cs") || t.includes("ai")) {
+      return "card-ai"; // Magenta glow
+    }
+    return "card-saas";
   };
 
   return (
     <section id="skills" className="py-12 border-t border-white/5 print:hidden">
-      <div className="max-w-4xl mx-auto space-y-8">
+      <div className="max-w-[1200px] mx-auto space-y-8">
         
         {/* Section Heading */}
         <motion.div 
@@ -57,7 +60,7 @@ export default function Skills() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-50px" }}
               transition={{ duration: 0.5, delay: idx * 0.04, ease: [0.16, 1, 0.3, 1] }}
-              className={`p-5 rounded-2xl liquid-glass-card ${getCategoryHoverClass(category.title)} flex flex-col justify-between`}
+              className={`p-5 rounded-[24px] liquid-glass-card ${getCategoryCardClass(category.title)} flex flex-col justify-between`}
             >
               <div className="space-y-4">
                 
