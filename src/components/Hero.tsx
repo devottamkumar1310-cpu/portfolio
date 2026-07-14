@@ -7,27 +7,27 @@ interface HeroProps {
 }
 
 export default function Hero({ onTabChange }: HeroProps) {
-  // Motion settings
+  // Motion settings - clean fade up without visual skew
   const FADE_UP = {
-    initial: { opacity: 0, y: 16, filter: "blur(6px)" },
-    animate: { opacity: 1, y: 0, filter: "blur(0px)" },
+    initial: { opacity: 0, y: 12 },
+    animate: { opacity: 1, y: 0 },
     transition: (delay: number) => ({
-      duration: 0.65,
+      duration: 0.6,
       delay,
       ease: [0.16, 1, 0.3, 1] as const // premium easeOutExpo
     })
   };
 
   return (
-    <section className="relative pt-16 pb-20 sm:pt-24 sm:pb-28 overflow-hidden print:hidden flex flex-col items-center justify-center text-center">
+    <section className="relative pt-20 pb-20 sm:pt-28 sm:pb-28 overflow-hidden print:hidden flex flex-col items-center justify-center text-center">
       
       {/* Decorative Grid Mesh */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:42px_42px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_40%,#000_65%,transparent_100%)] pointer-events-none -z-10" />
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff02_1px,transparent_1px),linear-gradient(to_bottom,#ffffff02_1px,transparent_1px)] bg-[size:42px_42px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_40%,#000_65%,transparent_100%)] pointer-events-none -z-10" />
 
-      {/* Main container */}
-      <div className="max-w-4xl mx-auto flex flex-col items-center px-4 relative z-10">
+      {/* Main container - Perfectly centered */}
+      <div className="max-w-4xl mx-auto flex flex-col items-center px-4 relative z-10 w-full">
         
-        {/* Intro Label */}
+        {/* 1. Badge */}
         <motion.div 
           initial={FADE_UP.initial}
           animate={FADE_UP.animate}
@@ -38,53 +38,66 @@ export default function Hero({ onTabChange }: HeroProps) {
           <span>{BIO_SUMMARY.institution} // {BIO_SUMMARY.educationDegree}</span>
         </motion.div>
 
-        {/* Main typography display */}
+        {/* 2. Headline */}
         <motion.h1 
           initial={FADE_UP.initial}
           animate={FADE_UP.animate}
-          transition={FADE_UP.transition(0.25)}
-          className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-white leading-tight max-w-4xl"
+          transition={FADE_UP.transition(0.22)}
+          className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-white leading-tight max-w-4xl mb-6"
         >
-          <span className="text-transparent bg-clip-text bg-gradient-to-b from-white via-white to-gray-500">{BIO_SUMMARY.title}</span>
+          <span className="text-transparent bg-clip-text bg-gradient-to-b from-white via-white to-gray-500">
+            {BIO_SUMMARY.title}
+          </span>
         </motion.h1>
 
-        {/* Specialized descriptive sublabel / Name */}
+        {/* 3. Name */}
         <motion.p
           initial={FADE_UP.initial}
           animate={FADE_UP.animate}
-          transition={FADE_UP.transition(0.38)}
-          className="mt-6 text-cyan-400 text-sm tracking-[0.2em] font-mono uppercase font-bold"
+          transition={FADE_UP.transition(0.32)}
+          className="text-cyan-400 text-sm tracking-[0.25em] font-mono uppercase font-bold mb-6"
         >
           {BIO_SUMMARY.name}
         </motion.p>
 
-        {/* Sub-paragraph describing focus */}
-        <motion.div 
+        {/* 4. Description */}
+        <motion.p 
           initial={FADE_UP.initial}
           animate={FADE_UP.animate}
-          transition={FADE_UP.transition(0.5)}
-          className="mt-6 text-gray-300 text-sm sm:text-base max-w-2xl leading-relaxed font-sans space-y-4"
+          transition={FADE_UP.transition(0.42)}
+          className="text-gray-300 text-sm sm:text-base max-w-2xl leading-relaxed font-sans mb-8 whitespace-pre-wrap"
         >
-          <p className="whitespace-pre-wrap">
-            {BIO_SUMMARY.subtitle}
-          </p>
-          
-          <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
-            <span className="text-xs font-mono text-gray-500 uppercase tracking-widest mr-2">Current Focus:</span>
+          {BIO_SUMMARY.subtitle}
+        </motion.p>
+        
+        {/* 5. Focus Tags */}
+        <motion.div
+          initial={FADE_UP.initial}
+          animate={FADE_UP.animate}
+          transition={FADE_UP.transition(0.52)}
+          className="flex flex-col items-center gap-2.5 mb-10 w-full"
+        >
+          <span className="text-[10px] font-mono text-gray-500 uppercase tracking-[0.2em] font-bold">
+            Current Focus
+          </span>
+          <div className="flex flex-wrap items-center justify-center gap-2 max-w-xl">
             {BIO_SUMMARY.currentFocus.map((focus, i) => (
-              <span key={i} className="px-2 py-1 bg-white/[0.03] border border-white/5 rounded text-xs font-mono text-cyan-100">
+              <span 
+                key={i} 
+                className="px-2.5 py-1 bg-white/[0.03] border border-white/5 rounded text-xs font-mono text-cyan-100"
+              >
                 {focus}
               </span>
             ))}
           </div>
         </motion.div>
 
-        {/* CTAs */}
+        {/* 6. CTA Buttons */}
         <motion.div 
           initial={FADE_UP.initial}
           animate={FADE_UP.animate}
           transition={FADE_UP.transition(0.62)}
-          className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-4 w-full sm:w-auto"
+          className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full sm:w-auto"
         >
           <button
             onClick={() => onTabChange("projects")}
