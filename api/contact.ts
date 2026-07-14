@@ -64,7 +64,7 @@ export default async function handler(req: any, res: any) {
 
     // 6. Send Notification Email
     const response = await resend.emails.send({
-      from: 'onboarding@resend.dev',
+      from: process.env.EMAIL_FROM || 'contact@devottamkumar.in',
       to: destinationEmail,
       subject: 'New Portfolio Contact Submission',
       text: `Name: ${cleanName}\nEmail: ${cleanEmail}\nCompany: ${cleanCompany || 'N/A'}\nSubmitted At: ${new Date().toISOString()}\n\nMessage:\n${cleanMessage}`,

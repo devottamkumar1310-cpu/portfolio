@@ -189,7 +189,7 @@ app.post("/api/contact", async (req, res) => {
 
     // 6. Send Notification Email
     const response = await resend.emails.send({
-      from: "onboarding@resend.dev",
+      from: process.env.EMAIL_FROM || "contact@devottamkumar.in",
       to: destinationEmail,
       subject: "New Portfolio Contact Submission",
       text: `----------------------------------\nName: ${cleanName}\nEmail: ${cleanEmail}\nCompany: ${cleanCompany || "N/A"}\nTime: ${new Date().toISOString()}\n\nMessage:\n${cleanMessage}\n----------------------------------`,
@@ -210,7 +210,7 @@ app.post("/api/contact", async (req, res) => {
       console.log(`[Auto-Reply Subsystem] Triggered for user ${cleanEmail}. Feature flag is active.`);
       try {
         await resend.emails.send({
-          from: "onboarding@resend.dev",
+          from: process.env.EMAIL_FROM || "contact@devottamkumar.in",
           to: cleanEmail,
           subject: "Thank you for reaching out!",
           text: `Hi ${cleanName},\n\nThank you for getting in touch. I have received your message and will review it shortly.\n\nBest regards,\nDevottam Kumar`,
