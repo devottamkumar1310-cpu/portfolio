@@ -1,5 +1,6 @@
 import { TIMELINE_EVENTS } from "../data";
 import { Sparkles, Code, Laptop, Brain, Compass, BookOpen, Rocket, Cpu } from "lucide-react";
+import { motion } from "motion/react";
 
 export default function Timeline() {
   
@@ -9,11 +10,11 @@ export default function Timeline() {
       <BookOpen className="h-3.5 w-3.5 text-blue-400" />,
       <Code className="h-3.5 w-3.5 text-cyan-400" />,
       <Rocket className="h-3.5 w-3.5 text-orange-400" />,
-      <Brain className="h-3.5 w-3.5 text-purple-400" />,
+      <Brain className="h-3.5 w-3.5 text-cyan-400" />,
       <Cpu className="h-3.5 w-3.5 text-emerald-400" />,
-      <Sparkles className="h-3.5 w-3.5 text-pink-400" />,
-      <Laptop className="h-3.5 w-3.5 text-teal-400" />,
-      <Compass className="h-3.5 w-3.5 text-violet-400" />,
+      <Sparkles className="h-3.5 w-3.5 text-blue-450" />,
+      <Laptop className="h-3.5 w-3.5 text-cyan-400" />,
+      <Compass className="h-3.5 w-3.5 text-blue-400" />,
     ];
     return icons[idx % icons.length];
   };
@@ -23,7 +24,13 @@ export default function Timeline() {
       <div className="max-w-4xl mx-auto space-y-8">
         
         {/* Section Header */}
-        <div className="text-left space-y-2">
+        <motion.div 
+          initial={{ opacity: 0, y: 12 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-50px" }}
+          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+          className="text-left space-y-2"
+        >
           <span className="text-[10px] font-mono text-cyan-400 uppercase tracking-widest block font-bold">/ Progression</span>
           <h2 className="text-2xl sm:text-3xl font-semibold text-white tracking-tight font-sans">
             My Journey & Key Milestones
@@ -31,13 +38,20 @@ export default function Timeline() {
           <p className="text-xs text-gray-400 max-w-xl font-sans leading-relaxed">
             A linear progression detailing my development, from study, backend scripts, to orchestrating operational logic.
           </p>
-        </div>
+        </motion.div>
 
         {/* Dynamic Vertical Timeline */}
         <div className="relative border-l border-white/5 ml-4 md:ml-32 space-y-8 py-4">
           
           {TIMELINE_EVENTS.map((event, idx) => (
-            <div key={idx} className="relative pl-6 md:pl-10">
+            <motion.div 
+              key={idx} 
+              initial={{ opacity: 0, x: -8 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true, margin: "-50px" }}
+              transition={{ duration: 0.5, delay: idx * 0.04, ease: [0.16, 1, 0.3, 1] }}
+              className="relative pl-6 md:pl-10"
+            >
               
               {/* Dot bullet indicator */}
               <div className="absolute -left-[14px] top-1.5 w-7 h-7 rounded-full bg-[#050505] border border-white/10 flex items-center justify-center shadow-lg">
@@ -69,7 +83,7 @@ export default function Timeline() {
                 </p>
               </div>
 
-            </div>
+            </motion.div>
           ))}
 
         </div>

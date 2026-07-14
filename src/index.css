@@ -99,6 +99,186 @@ body {
   animation: pulse-slow 10s infinite ease-in-out;
 }
 
+/* ==================================================
+   DARK LIQUID GLASS & NEON EDGE ILLUMINATION (HUD / SaaS inspired)
+   ================================================== */
+
+@keyframes flagship-glow-pulse {
+  0%, 100% {
+    border-color: rgba(6, 182, 212, 0.25);
+    box-shadow: 
+      0 20px 50px -15px rgba(0, 0, 0, 0.95),
+      0 0 25px -5px rgba(6, 182, 212, 0.25),
+      inset 0 1px 1px 0 rgba(255, 255, 255, 0.05);
+  }
+  50% {
+    border-color: rgba(139, 92, 246, 0.35);
+    box-shadow: 
+      0 20px 55px -15px rgba(0, 0, 0, 0.98),
+      0 0 35px -2px rgba(139, 92, 246, 0.3),
+      inset 0 1px 1px 0 rgba(255, 255, 255, 0.08);
+  }
+}
+
+.liquid-glass-navbar {
+  background-image: 
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E"),
+    linear-gradient(to bottom, rgba(4, 4, 6, 0.7), rgba(1, 1, 2, 0.85));
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(6, 182, 212, 0.18);
+  box-shadow: 
+    0 12px 40px -12px rgba(0, 0, 0, 0.9),
+    0 0 12px -3px rgba(6, 182, 212, 0.25),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.04);
+  transition: all 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.liquid-glass-navbar:hover {
+  border-color: rgba(6, 182, 212, 0.35);
+  box-shadow: 
+    0 12px 40px -12px rgba(0, 0, 0, 0.95),
+    0 0 16px -1px rgba(6, 182, 212, 0.35),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.liquid-glass-btn {
+  background-image: 
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.02'/%3E%3C/svg%3E"),
+    linear-gradient(to bottom, rgba(10, 10, 15, 0.65), rgba(4, 4, 6, 0.8));
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 
+    0 4px 12px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.02);
+  transition: all 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.liquid-glass-btn:hover {
+  transform: scale(1.02);
+  background-image: 
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.02'/%3E%3C/svg%3E"),
+    linear-gradient(to bottom, rgba(59, 130, 246, 0.04), rgba(4, 4, 6, 0.8));
+  border-color: rgba(59, 130, 246, 0.35);
+  box-shadow: 
+    0 8px 20px -6px rgba(59, 130, 246, 0.2),
+    0 0 12px 1px rgba(59, 130, 246, 0.18),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.04);
+}
+
+.liquid-glass-btn:active {
+  transform: scale(0.98);
+}
+
+.liquid-glass-btn-primary {
+  background-image: 
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.02'/%3E%3C/svg%3E"),
+    linear-gradient(to bottom, rgba(6, 182, 212, 0.06), rgba(4, 4, 6, 0.85));
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(6, 182, 212, 0.35);
+  box-shadow: 
+    0 4px 12px rgba(0, 0, 0, 0.5),
+    0 0 12px -3px rgba(6, 182, 212, 0.25),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.04);
+  transition: all 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.liquid-glass-btn-primary:hover {
+  transform: scale(1.02);
+  background-image: 
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.02'/%3E%3C/svg%3E"),
+    linear-gradient(to bottom, rgba(6, 182, 212, 0.12), rgba(4, 4, 6, 0.85));
+  border-color: rgba(6, 182, 212, 0.65);
+  box-shadow: 
+    0 8px 24px -5px rgba(6, 182, 212, 0.35),
+    0 0 16px 2px rgba(6, 182, 212, 0.35),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
+}
+
+.liquid-glass-btn-primary:active {
+  transform: scale(0.98);
+}
+
+.liquid-glass-featured {
+  background-image: 
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.035'/%3E%3C/svg%3E"),
+    linear-gradient(135deg, rgba(4, 5, 12, 0.75) 0%, rgba(2, 2, 5, 0.9) 100%);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(6, 182, 212, 0.25);
+  box-shadow: 
+    0 20px 50px -15px rgba(0, 0, 0, 0.95),
+    0 0 25px -5px rgba(6, 182, 212, 0.25),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.05);
+  animation: flagship-glow-pulse 8s infinite ease-in-out;
+  transition: all 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.liquid-glass-featured:hover {
+  transform: translateY(-4px);
+  border-color: rgba(139, 92, 246, 0.55);
+  box-shadow: 
+    0 25px 60px -10px rgba(0, 0, 0, 0.95),
+    0 0 45px 2px rgba(139, 92, 246, 0.45),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.12);
+  animation-play-state: paused;
+}
+
+.liquid-glass-card {
+  background-image: 
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.025'/%3E%3C/svg%3E"),
+    linear-gradient(to bottom, rgba(6, 6, 8, 0.65), rgba(2, 2, 3, 0.85));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  box-shadow: 
+    0 4px 20px -5px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.02);
+  transition: all 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.liquid-glass-card:hover {
+  transform: translateY(-4px);
+  background-image: 
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.025'/%3E%3C/svg%3E"),
+    linear-gradient(to bottom, rgba(6, 182, 212, 0.02), rgba(2, 2, 3, 0.85));
+  border-color: rgba(6, 182, 212, 0.28);
+  box-shadow: 
+    0 12px 24px -8px rgba(0, 0, 0, 0.75),
+    0 0 15px -2px rgba(6, 182, 212, 0.25),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.04);
+}
+
+.liquid-glass-contact {
+  background-image: 
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.025'/%3E%3C/svg%3E"),
+    linear-gradient(to bottom, rgba(5, 5, 8, 0.7), rgba(2, 2, 3, 0.88));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  box-shadow: 
+    0 10px 30px -10px rgba(0, 0, 0, 0.7),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.02);
+  transition: all 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.liquid-glass-contact-item {
+  transition: all 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.liquid-glass-contact-item:hover {
+  background-image: 
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.015'/%3E%3C/svg%3E"),
+    linear-gradient(to bottom, rgba(6, 182, 212, 0.02), rgba(4, 4, 6, 0.95));
+  border-color: rgba(6, 182, 212, 0.35);
+  transform: translateY(-2px);
+  box-shadow: 
+    0 0 12px -2px rgba(6, 182, 212, 0.25),
+    0 4px 12px rgba(0, 0, 0, 0.6);
+}
+
 /* Printable resume media rules */
 @media print {
   body, html {

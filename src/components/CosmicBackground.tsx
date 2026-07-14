@@ -5,18 +5,10 @@ interface Star {
   y: number;
   size: number;
   opacity: number;
-  shimmerSpeed: number;
-  shimmerPhase: number;
-}
-
-interface DustParticle {
-  x: number;
-  y: number;
-  size: number;
-  opacity: number;
   vx: number;
   vy: number;
   depth: number;
+  shimmerSpeed: number;
   shimmerPhase: number;
 }
 
@@ -77,7 +69,7 @@ export default function CosmicBackground() {
 
     const isMobile = window.innerWidth < 768;
 
-    // ─── 1. PRECOMPUTE FILM GRAIN TEXTURE ──────────────────────────────────
+    // ─── 1. FILM GRAIN PATTERN OVERLAY ────────────────────────────────────
     const grainCanvas = document.createElement("canvas");
     grainCanvas.width = 128;
     grainCanvas.height = 128;
@@ -88,275 +80,198 @@ export default function CosmicBackground() {
       imgData.data[i] = val;
       imgData.data[i + 1] = val;
       imgData.data[i + 2] = val;
-      imgData.data[i + 3] = Math.floor(Math.random() * 10 + 2); // Premium grain texture
+      imgData.data[i + 3] = Math.floor(Math.random() * 5 + 1); // Faint HUD monitor noise
     }
     gctx.putImageData(imgData, 0, 0);
     const grainPattern = ctx.createPattern(grainCanvas, "repeat");
 
-    // ─── 2. PRECOMPUTE DUST PARTICLES (Layer 3 & 6) ───────────────────────
-    // Drift particles for depth perception
-    const dustCount = isMobile ? 30 : 70;
-    const dustParticles: DustParticle[] = Array.from({ length: dustCount }, () => {
-      const depth = Math.random(); // 0 = far, 1 = foreground
+    // ─── 2. LAYER 1: DISTANT DRIFTING STARS ────────────────────────────────
+    const starCount = isMobile ? 220 : 550;
+    const stars: Star[] = Array.from({ length: starCount }, () => {
+      const sizeRoll = Math.random();
+      const depth = sizeRoll > 0.95 ? 0.9 : sizeRoll > 0.7 ? 0.6 : 0.3; // 3 distinct depth levels
       return {
         x: Math.random(),
         y: Math.random(),
-        size: depth * 1.6 + 0.5,
-        opacity: depth * 0.18 + 0.04,
-        vx: (Math.random() - 0.5) * 0.0003,
-        vy: (Math.random() - 0.5) * 0.0003 - 0.0001, // slow upward drift
+        size: sizeRoll > 0.95 ? 0.85 + Math.random() * 0.5 : 0.2 + Math.random() * 0.35,
+        opacity: sizeRoll > 0.95 ? 0.25 + Math.random() * 0.35 : 0.06 + Math.random() * 0.18,
+        // Extremely slow star drift
+        vx: (Math.random() - 0.5) * 0.000015,
+        vy: (Math.random() - 0.5) * 0.00001 - 0.000008, // subtle upward drift
         depth,
+        shimmerSpeed: sizeRoll > 0.85 ? 0.12 + Math.random() * 0.25 : 0,
         shimmerPhase: Math.random() * Math.PI * 2,
       };
     });
 
-    // ─── 3. PRECOMPUTE ASTRONOMICAL STARFIELD (Layer 2) ─────────────────────
-    const starCount = isMobile ? 380 : 850;
-    const stars: Star[] = [];
-
-    // Clustered density centers to mimic real astronomical formations
-    const clusters = [
-      { cx: 0.15, cy: 0.20, spread: 0.18 },
-      { cx: 0.85, cy: 0.35, spread: 0.16 },
-      { cx: 0.70, cy: 0.75, spread: 0.22 },
-      { cx: 0.25, cy: 0.70, spread: 0.20 },
-    ];
-
-    for (let i = 0; i < starCount; i++) {
-      let x = Math.random();
-      let y = Math.random();
-
-      // 60% of stars reside in clustered regions
-      if (Math.random() < 0.60) {
-        const cluster = clusters[Math.floor(Math.random() * clusters.length)];
-        const angle = Math.random() * Math.PI * 2;
-        const distance = Math.pow(Math.random(), 1.8) * cluster.spread;
-        x = (cluster.cx + Math.cos(angle) * distance + 1) % 1;
-        y = (cluster.cy + Math.sin(angle) * distance + 1) % 1;
-      }
-
-      const sizeRoll = Math.random();
-      let size = 0.20 + Math.random() * 0.35;
-      let opacity = 0.08 + Math.random() * 0.35;
-
-      if (sizeRoll > 0.95) {
-        size = 0.65 + Math.random() * 0.45; // Brighter points
-        opacity = 0.45 + Math.random() * 0.45;
-      } else if (sizeRoll < 0.25) {
-        size = 0.10 + Math.random() * 0.12; // Far tiny background stars
-        opacity = 0.04 + Math.random() * 0.18;
-      }
-
-      stars.push({
-        x,
-        y,
-        size,
-        opacity,
-        shimmerSpeed: sizeRoll > 0.90 ? 0.2 + Math.random() * 0.5 : 0,
-        shimmerPhase: Math.random() * Math.PI * 2,
-      });
-    }
-
-    // ─── 4. RENDER LOOP ───────────────────────────────────────────────────
+    // ─── 3. RENDER LOOP ───────────────────────────────────────────────────
     const render = (time: number) => {
       if (!startTimeRef.current) startTimeRef.current = time;
       const elapsed = (time - startTimeRef.current) * 0.001;
 
-      // Mouse Parallax Lerping (Very subtle, almost imperceptible)
-      mouseRef.current.x += (mouseTargetRef.current.x - mouseRef.current.x) * 0.025;
-      mouseRef.current.y += (mouseTargetRef.current.y - mouseRef.current.y) * 0.025;
+      // Mouse Parallax Lerping
+      mouseRef.current.x += (mouseTargetRef.current.x - mouseRef.current.x) * 0.035;
+      mouseRef.current.y += (mouseTargetRef.current.y - mouseRef.current.y) * 0.035;
 
       const mx = mouseRef.current.x;
       const my = mouseRef.current.y;
       const scrollY = scrollYRef.current;
 
-      // Layer 1: PURE DEEP SPACE VOID
-      ctx.fillStyle = "#010103";
+      // Base solid void
+      ctx.fillStyle = "#020204";
       ctx.fillRect(0, 0, width, height);
 
-      // Deep space ambient baseline (Very subtle Navy/Midnight blue background haze)
+      // Deep Space Baseline Ambient Glow
       const ambientGlow = ctx.createRadialGradient(
         width * 0.5,
-        height * 0.4,
+        height * 0.5,
         0,
         width * 0.5,
-        height * 0.4,
+        height * 0.5,
         Math.max(width, height) * 0.85
       );
-      ambientGlow.addColorStop(0, "rgba(2, 6, 20, 0.40)");
-      ambientGlow.addColorStop(0.55, "rgba(1, 3, 10, 0.12)");
-      ambientGlow.addColorStop(1.0, "#010103");
+      ambientGlow.addColorStop(0, "rgba(2, 6, 22, 0.4)");
+      ambientGlow.addColorStop(0.65, "rgba(1, 3, 10, 0.12)");
+      ambientGlow.addColorStop(1.0, "#020204");
       ctx.fillStyle = ambientGlow;
       ctx.fillRect(0, 0, width, height);
 
-      // Layer 2: DISTANT STAR FIELD (Clustered & Sparse)
-      stars.forEach((star, i) => {
-        // Multi-depth parallax offsets
-        const depth = star.size < 0.35 ? 0.006 : star.size > 0.85 ? 0.024 : 0.014;
-        const pX = (mx - 0.5) * depth * width;
-        const pY = (my - 0.5) * depth * height - scrollY * depth * 0.6;
+      // ─── LAYER 2: NEBULA HAZE (Subtle movement) ──────────────────────────
+      ctx.save();
+      ctx.globalCompositeOperation = "screen";
+      {
+        // Cyan Nebula Haze - drifting slowly in a circular orbit
+        const cx1 = width * (0.15 + Math.sin(elapsed * 0.015) * 0.03) + (mx - 0.5) * 20;
+        const cy1 = height * (0.35 + Math.cos(elapsed * 0.01) * 0.02) - scrollY * 0.012;
+        const radius1 = Math.max(width, height) * (isMobile ? 0.55 : 0.42);
+        const grad1 = ctx.createRadialGradient(cx1, cy1, 0, cx1, cy1, radius1);
+        grad1.addColorStop(0, "rgba(6, 182, 212, 0.05)"); 
+        grad1.addColorStop(0.5, "rgba(6, 95, 115, 0.015)");
+        grad1.addColorStop(1.0, "rgba(0, 0, 0, 0)");
+        ctx.fillStyle = grad1;
+        ctx.beginPath();
+        ctx.arc(cx1, cy1, radius1, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Electric Blue Nebula Haze - drifting slowly
+        const cx2 = width * (0.82 + Math.cos(elapsed * 0.012) * 0.03) + (mx - 0.5) * 18;
+        const cy2 = height * (0.28 + Math.sin(elapsed * 0.014) * 0.02) - scrollY * 0.012;
+        const radius2 = Math.max(width, height) * (isMobile ? 0.6 : 0.45);
+        const grad2 = ctx.createRadialGradient(cx2, cy2, 0, cx2, cy2, radius2);
+        grad2.addColorStop(0, "rgba(59, 130, 246, 0.06)"); 
+        grad2.addColorStop(0.5, "rgba(30, 58, 138, 0.015)");
+        grad2.addColorStop(1.0, "rgba(0, 0, 0, 0)");
+        ctx.fillStyle = grad2;
+        ctx.beginPath();
+        ctx.arc(cx2, cy2, radius2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+
+      // ─── LAYER 3: LIGHT BEAMS & ATMOSPHERIC GRADIENTS (Slow shifting) ────
+      ctx.save();
+      ctx.globalCompositeOperation = "screen";
+      {
+        // Volumetric Light Beam 1: Swinging slowly from top-right
+        const angle1 = Math.sin(elapsed * 0.05) * 0.03;
+        ctx.save();
+        ctx.translate(width * 0.85, -50);
+        ctx.rotate(angle1);
+        const beamGrad1 = ctx.createLinearGradient(0, 0, -width * 0.45, height * 0.8);
+        beamGrad1.addColorStop(0, "rgba(6, 182, 212, 0.025)"); // cyan highlight
+        beamGrad1.addColorStop(0.5, "rgba(59, 130, 246, 0.008)");
+        beamGrad1.addColorStop(1.0, "rgba(0, 0, 0, 0)");
+        ctx.fillStyle = beamGrad1;
+        ctx.beginPath();
+        ctx.moveTo(-120, 0);
+        ctx.lineTo(120, 0);
+        ctx.lineTo(-width * 0.1, height);
+        ctx.lineTo(-width * 0.6, height);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+
+        // Volumetric Light Beam 2: Swinging slowly from top-left
+        const angle2 = Math.cos(elapsed * 0.04) * 0.04;
+        ctx.save();
+        ctx.translate(width * 0.12, -80);
+        ctx.rotate(angle2);
+        const beamGrad2 = ctx.createLinearGradient(0, 0, width * 0.4, height * 0.85);
+        beamGrad2.addColorStop(0, "rgba(59, 130, 246, 0.025)"); // blue highlight
+        beamGrad2.addColorStop(0.5, "rgba(6, 182, 212, 0.008)");
+        beamGrad2.addColorStop(1.0, "rgba(0, 0, 0, 0)");
+        ctx.fillStyle = beamGrad2;
+        ctx.beginPath();
+        ctx.moveTo(-100, 0);
+        ctx.lineTo(100, 0);
+        ctx.lineTo(width * 0.6, height);
+        ctx.lineTo(width * 0.1, height);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+      ctx.restore();
+
+      // ─── LAYER 5: SOFT ILLUMINATION (Hero & EVE sections backlight) ──────
+      {
+        // Hero Illumination
+        const hX = width * 0.5 + (mx - 0.5) * 15;
+        const hY = height * 0.26 + (my - 0.5) * 10 - scrollY * 0.15;
+        const hRad = Math.max(width, height) * (isMobile ? 0.65 : 0.42);
+        const heroGrad = ctx.createRadialGradient(hX, hY, 0, hX, hY, hRad);
+        heroGrad.addColorStop(0, "rgba(6, 182, 212, 0.055)"); // soft cyan
+        heroGrad.addColorStop(0.5, "rgba(59, 130, 246, 0.02)"); // electric blue
+        heroGrad.addColorStop(1.0, "rgba(0, 0, 0, 0)");
+        ctx.fillStyle = heroGrad;
+        ctx.beginPath();
+        ctx.arc(hX, hY, hRad, 0, Math.PI * 2);
+        ctx.fill();
+
+        // EVE Flagship Illumination (Soft violet backlight, violet reserved for EVE)
+        const eX = width * 0.5 + (mx - 0.5) * 12;
+        const eY = height * 0.88 + (my - 0.5) * 8 - scrollY * 0.22;
+        const eRad = Math.max(width, height) * (isMobile ? 0.62 : 0.4);
+        const eveGrad = ctx.createRadialGradient(eX, eY, 0, eX, eY, eRad);
+        eveGrad.addColorStop(0, "rgba(139, 92, 246, 0.045)"); // soft violet backlight
+        eveGrad.addColorStop(0.5, "rgba(6, 182, 212, 0.015)"); // cyan fade
+        eveGrad.addColorStop(1.0, "rgba(0, 0, 0, 0)");
+        ctx.fillStyle = eveGrad;
+        ctx.beginPath();
+        ctx.arc(eX, eY, eRad, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // ─── LAYER 1 & 4: STAR DRIFT & MOUSE-BASED PARALLAX ──────────────────
+      stars.forEach((star) => {
+        // Drift movement
+        star.x += star.vx;
+        star.y += star.vy;
+
+        // Wrap stars
+        if (star.x < 0) star.x = 1;
+        if (star.x > 1) star.x = 0;
+        if (star.y < 0) star.y = 1;
+        if (star.y > 1) star.y = 0;
+
+        // Layer-based Parallax calculations
+        const pX = (mx - 0.5) * star.depth * 30;
+        const pY = (my - 0.5) * star.depth * 22 - scrollY * star.depth * 0.5;
 
         const sx = (star.x * width + pX + width) % width;
         const sy = (star.y * height + pY + height) % height;
 
-        // Apply slow shimmer/glimmer to selected stars
         let currentOpacity = star.opacity;
         if (star.shimmerSpeed > 0) {
-          currentOpacity = star.opacity * (0.7 + 0.3 * Math.sin(elapsed * star.shimmerSpeed + star.shimmerPhase));
+          currentOpacity = star.opacity * (0.65 + 0.35 * Math.sin(elapsed * star.shimmerSpeed + star.shimmerPhase));
         }
 
-        // Color temperature distribution (White, Steel Blue, Pale Cyan)
-        let starColor = `rgba(255, 255, 255, ${currentOpacity})`;
-        if (i % 7 === 0) {
-          starColor = `rgba(180, 215, 255, ${currentOpacity})`; // Steel Blue
-        } else if (i % 11 === 0) {
-          starColor = `rgba(200, 242, 255, ${currentOpacity})`; // Pale Cyan
-        }
-
-        ctx.fillStyle = starColor;
+        ctx.fillStyle = `rgba(255, 255, 255, ${currentOpacity})`;
         ctx.beginPath();
         ctx.arc(sx, sy, star.size, 0, Math.PI * 2);
         ctx.fill();
       });
 
-      // Layer 3: SOFT VOLUMETRIC NEBULAE (Framing borders organically)
-      ctx.save();
-      ctx.globalCompositeOperation = "screen";
-
-      // Nebula slow drift calculations
-      const drift1 = elapsed * 0.012;
-      const drift2 = elapsed * 0.008;
-
-      // Left Nebula System (Framing top-left to middle-left)
-      {
-        const cx = width * (0.05 + Math.sin(drift1) * 0.025) + (mx - 0.5) * 16;
-        const cy = height * (0.35 + Math.cos(drift2) * 0.02) - scrollY * 0.02;
-        const radius = Math.max(width, height) * (isMobile ? 0.5 : 0.42);
-
-        // Volumetric deep navy core
-        const grad1 = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
-        grad1.addColorStop(0, "rgba(8, 25, 95, 0.32)"); // Framed deep volume
-        grad1.addColorStop(0.35, "rgba(4, 15, 60, 0.15)");
-        grad1.addColorStop(0.7, "rgba(1, 4, 25, 0.04)");
-        grad1.addColorStop(1.0, "rgba(0, 0, 0, 0)");
-        ctx.fillStyle = grad1;
-        ctx.beginPath();
-        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Soft pale cyan gas overlay (Asymmetric, offset)
-        const ox = cx + width * 0.05;
-        const oy = cy - height * 0.08;
-        const oRadius = radius * 0.65;
-        const grad2 = ctx.createRadialGradient(ox, oy, 0, ox, oy, oRadius);
-        grad2.addColorStop(0, "rgba(0, 140, 195, 0.18)"); // Faint atmospheric glow
-        grad2.addColorStop(0.4, "rgba(0, 65, 100, 0.07)");
-        grad2.addColorStop(1.0, "rgba(0, 0, 0, 0)");
-        ctx.fillStyle = grad2;
-        ctx.beginPath();
-        ctx.arc(ox, oy, oRadius, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      // Right Nebula System (Framing top-right to bottom-right)
-      {
-        const cx = width * (0.92 + Math.cos(drift1 * 0.9) * 0.02) + (mx - 0.5) * 14;
-        const cy = height * (0.22 + Math.sin(drift2 * 1.1) * 0.025) - scrollY * 0.015;
-        const radius = Math.max(width, height) * (isMobile ? 0.45 : 0.38);
-
-        const grad1 = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
-        grad1.addColorStop(0, "rgba(0, 100, 145, 0.24)"); // Volumetric steel blue
-        grad1.addColorStop(0.4, "rgba(0, 50, 85, 0.11)");
-        grad1.addColorStop(0.75, "rgba(0, 20, 40, 0.03)");
-        grad1.addColorStop(1.0, "rgba(0, 0, 0, 0)");
-        ctx.fillStyle = grad1;
-        ctx.beginPath();
-        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Asymmetric diffuse indigo cloud
-        const ox = cx - width * 0.09;
-        const oy = cy + height * 0.14;
-        const oRadius = radius * 0.85;
-        const grad2 = ctx.createRadialGradient(ox, oy, 0, ox, oy, oRadius);
-        grad2.addColorStop(0, "rgba(10, 35, 95, 0.16)");
-        grad2.addColorStop(0.55, "rgba(3, 12, 45, 0.05)");
-        grad2.addColorStop(1.0, "rgba(0, 0, 0, 0)");
-        ctx.fillStyle = grad2;
-        ctx.beginPath();
-        ctx.arc(ox, oy, oRadius, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      // Southern deep space atmospheric fog
-      {
-        const cx = width * 0.5;
-        const cy = height * 1.1 - scrollY * 0.01;
-        const radius = Math.max(width, height) * 0.65;
-        const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
-        grad.addColorStop(0, "rgba(6, 18, 55, 0.22)");
-        grad.addColorStop(0.5, "rgba(2, 6, 22, 0.07)");
-        grad.addColorStop(1.0, "rgba(0, 0, 0, 0)");
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      ctx.restore();
-
-      // ── Layer 4: FAINT COSMIC DUST & PARTICLES (Subtle drift) ────────────
-      dustParticles.forEach((dust) => {
-        dust.x += dust.vx;
-        dust.y += dust.vy;
-
-        // Wrap around boundaries
-        if (dust.x < 0) dust.x = 1;
-        if (dust.x > 1) dust.x = 0;
-        if (dust.y < 0) dust.y = 1;
-        if (dust.y > 1) dust.y = 0;
-
-        // Mouse responsive movement mapping based on depth layer
-        const pX = (mx - 0.5) * (dust.depth * 20 + 5);
-        const pY = (my - 0.5) * (dust.depth * 15 + 5) - scrollY * 0.04;
-
-        const dx = dust.x * width + pX;
-        const dy = dust.y * height + pY;
-
-        // Atmospheric shimmer on the dust particles
-        const sh = 0.8 + 0.2 * Math.sin(elapsed * 0.4 + dust.shimmerPhase);
-
-        const dustGrad = ctx.createRadialGradient(dx, dy, 0, dx, dy, dust.size);
-        dustGrad.addColorStop(0, `rgba(180, 220, 255, ${dust.opacity * sh})`);
-        dustGrad.addColorStop(0.5, `rgba(100, 160, 220, ${dust.opacity * 0.3 * sh})`);
-        dustGrad.addColorStop(1.0, "rgba(0, 0, 0, 0)");
-
-        ctx.fillStyle = dustGrad;
-        ctx.beginPath();
-        ctx.arc(dx, dy, dust.size, 0, Math.PI * 2);
-        ctx.fill();
-      });
-
-      // ── Layer 5: FAINT CINEMATIC LIGHT VOLUMES (Diffusion only, no beams) ──
-      {
-        ctx.save();
-        ctx.globalCompositeOperation = "screen";
-
-        const lX = width * 0.85 + (mx - 0.5) * 15;
-        const lY = -height * 0.1 + (my - 0.5) * 10;
-        
-        // Very soft volumetric light scatter from top-right corner
-        const rayGrad = ctx.createLinearGradient(lX, lY, lX - width * 0.50, lY + height * 0.75);
-        rayGrad.addColorStop(0, "rgba(110, 180, 255, 0.035)");
-        rayGrad.addColorStop(0.5, "rgba(60, 130, 220, 0.01)");
-        rayGrad.addColorStop(1.0, "rgba(0, 0, 0, 0)");
-        ctx.fillStyle = rayGrad;
-        ctx.fillRect(0, 0, width, height);
-
-        ctx.restore();
-      }
-
-      // ── Layer 6: FILM GRAIN TEXTURE OVERLAY ──────────────────────────────
+      // ─── FILM GRAIN MONITOR OVERLAY ──────────────────────────────────────
       if (grainPattern) {
         ctx.save();
         ctx.globalCompositeOperation = "overlay";
@@ -365,18 +280,18 @@ export default function CosmicBackground() {
         ctx.restore();
       }
 
-      // ── Layer 7: CENTER SAFE ZONE VIGNETTE ───────────────────────────────
+      // Vignette Framing for visual depth
       const centerGrad = ctx.createRadialGradient(
         width * 0.5,
         height * 0.45,
-        Math.min(width, height) * 0.18,
+        Math.min(width, height) * 0.22,
         width * 0.5,
         height * 0.45,
         Math.max(width, height) * 0.8
       );
-      centerGrad.addColorStop(0, "rgba(0, 0, 0, 0)"); // Perfect void for text contrast
-      centerGrad.addColorStop(0.5, "rgba(0, 0, 0, 0.08)");
-      centerGrad.addColorStop(1.0, "rgba(0, 0, 0, 0.45)"); // Soft vignette framing
+      centerGrad.addColorStop(0, "rgba(0, 0, 0, 0)");
+      centerGrad.addColorStop(0.65, "rgba(0, 0, 0, 0.15)");
+      centerGrad.addColorStop(1.0, "rgba(0, 0, 0, 0.65)"); // soft OS CRT lens outline
       ctx.fillStyle = centerGrad;
       ctx.fillRect(0, 0, width, height);
 
@@ -393,15 +308,9 @@ export default function CosmicBackground() {
   }, [isClient]);
 
   return (
-    <div
-      className="fixed inset-0 w-full h-full pointer-events-none select-none -z-40 print:hidden overflow-hidden"
-    >
-      <div className="absolute inset-0 bg-[#010103] -z-50" />
-      <canvas
-        ref={canvasRef}
-        className="w-full h-full block"
-        id="cosmic-canvas"
-      />
+    <div className="fixed inset-0 w-full h-full pointer-events-none select-none -z-40 print:hidden overflow-hidden">
+      <div className="absolute inset-0 bg-[#020204] -z-50" />
+      <canvas ref={canvasRef} className="w-full h-full block" id="cosmic-canvas" />
     </div>
   );
 }

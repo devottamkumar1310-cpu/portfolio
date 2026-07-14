@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Menu, X, Code2 } from "lucide-react";
 import { BIO_SUMMARY } from "../data";
+import { motion, AnimatePresence } from "motion/react";
 
 interface HeaderProps {
   currentTab: string;
@@ -20,8 +21,8 @@ export default function Header({ currentTab }: HeaderProps) {
   ];
 
   return (
-    <header className="sticky top-0 z-50 bg-[#050505]/75 backdrop-blur-md border-b border-white/5 print:hidden">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+    <header className="sticky top-4 z-50 mx-4 md:mx-auto max-w-4xl liquid-glass-navbar rounded-full print:hidden">
+      <div className="px-6 h-14 flex items-center justify-between relative">
         
         {/* Name Logo */}
         <Link 
@@ -29,41 +30,49 @@ export default function Header({ currentTab }: HeaderProps) {
           onClick={() => setMobileMenuOpen(false)}
           className="flex items-center space-x-2.5 text-left group"
         >
-          <div className="w-9 h-9 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center transition-all group-hover:border-cyan-500/50">
-            <Code2 className="h-4.5 w-4.5 text-cyan-400 group-hover:scale-110 transition-transform" />
+          <div className="w-8.5 h-8.5 bg-white/5 border border-white/10 rounded-full flex items-center justify-center transition-all group-hover:border-cyan-500/50">
+            <Code2 className="h-4 w-4 text-cyan-400 group-hover:scale-110 transition-transform" />
           </div>
           <div>
-            <span className="font-semibold text-white tracking-tight block text-sm leading-tight">
+            <span className="font-semibold text-white tracking-tight block text-xs leading-tight">
               {BIO_SUMMARY.name}
             </span>
-            <span className="text-[10px] font-mono text-gray-500 leading-none">
+            <span className="text-[9px] font-mono text-gray-500 leading-none block">
               IIT PATNA STUDENT
             </span>
           </div>
         </Link>
 
         {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center space-x-1 text-sm">
-          {navItems.map((item) => (
-            <Link
-              key={item.id}
-              to={item.path}
-              className={`px-3 py-1.5 rounded-md transition-all text-xs font-semibold ${
-                currentTab === item.id 
-                  ? "bg-white/5 text-white border border-white/10" 
-                  : "text-gray-400 hover:text-white"
-              }`}
-            >
-              {item.label}
-            </Link>
-          ))}
+        <nav className="hidden md:flex items-center space-x-1 text-sm relative">
+          {navItems.map((item) => {
+            const isActive = currentTab === item.id;
+            return (
+              <Link
+                key={item.id}
+                to={item.path}
+                className={`relative px-3.5 py-1.5 rounded-full transition-colors duration-300 text-[11px] font-semibold ${
+                  isActive ? "text-cyan-400" : "text-gray-450 hover:text-white"
+                }`}
+              >
+                {isActive && (
+                  <motion.span
+                    layoutId="activeNavTab"
+                    className="absolute inset-0 bg-cyan-950/20 border border-cyan-500/35 rounded-full shadow-[0_0_12px_-3px_rgba(6,182,212,0.3)] -z-10"
+                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                  />
+                )}
+                {item.label}
+              </Link>
+            );
+          })}
         </nav>
 
         {/* Desktop Contact CTA */}
         <div className="hidden md:flex items-center space-x-3">
           <Link
             to="/contact"
-            className="px-3.5 py-1.5 rounded-md bg-white text-black hover:bg-gray-100 text-xs font-semibold tracking-tight transition-colors"
+            className="px-4 py-1.5 rounded-full liquid-glass-btn-primary text-[11px] font-bold tracking-tight text-white hover:text-cyan-400"
           >
             Get In Touch
           </Link>
@@ -73,41 +82,49 @@ export default function Header({ currentTab }: HeaderProps) {
         <div className="flex md:hidden items-center">
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors border border-white/5 cursor-pointer"
+            className="p-1.5 text-gray-400 hover:text-white hover:bg-white/5 rounded-full transition-all border border-white/5 cursor-pointer"
           >
-            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            {mobileMenuOpen ? <X className="h-4.5 w-4.5" /> : <Menu className="h-4.5 w-4.5" />}
           </button>
         </div>
 
-      </div>
-
-      {/* Mobile Menu dropdown */}
-      {mobileMenuOpen && (
-        <div className="md:hidden bg-[#0a0a0a] border-b border-white/5 px-4 py-4 space-y-2 text-sm">
-          {navItems.map((item) => (
-            <Link
-              key={item.id}
-              to={item.path}
-              onClick={() => setMobileMenuOpen(false)}
-              className={`w-full text-left px-3 py-2.5 rounded-lg transition-colors flex items-center font-semibold text-xs ${
-                currentTab === item.id 
-                  ? "bg-white/5 text-cyan-400 border border-white/10" 
-                  : "text-gray-400 hover:text-white"
-              }`}
+        {/* Mobile Menu dropdown */}
+        <AnimatePresence>
+          {mobileMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: -8 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: -8 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="absolute top-16 left-0 right-0 md:hidden liquid-glass-navbar px-4 py-4 rounded-2xl space-y-1.5 text-sm shadow-2xl z-50 border border-white/10"
             >
-              {item.label}
-            </Link>
-          ))}
-          <div className="h-px bg-white/5 my-2" />
-          <Link
-            to="/contact"
-            onClick={() => setMobileMenuOpen(false)}
-            className="w-full text-center block py-2.5 rounded-lg bg-white text-black hover:bg-gray-100 text-xs font-bold transition-all"
-          >
-            Get In Touch
-          </Link>
-        </div>
-      )}
+              {navItems.map((item) => (
+                <Link
+                  key={item.id}
+                  to={item.path}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`w-full text-left px-3.5 py-2.5 rounded-xl transition-all duration-200 flex items-center font-semibold text-xs border ${
+                    currentTab === item.id 
+                      ? "bg-cyan-950/20 text-cyan-400 border-cyan-500/35 shadow-inner" 
+                      : "text-gray-450 hover:text-white hover:bg-white/[0.03] border-transparent"
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              ))}
+              <div className="h-px bg-white/5 my-2" />
+              <Link
+                to="/contact"
+                onClick={() => setMobileMenuOpen(false)}
+                className="w-full text-center block py-2.5 rounded-xl liquid-glass-btn-primary text-xs font-bold transition-all shadow-md"
+              >
+                Get In Touch
+              </Link>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+      </div>
     </header>
   );
 }

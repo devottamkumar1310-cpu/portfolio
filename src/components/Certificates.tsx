@@ -82,39 +82,58 @@ interface CertificatesListViewProps {
 }
 
 function CertificatesListView({ onPreview }: CertificatesListViewProps) {
+  const isSingle = CERTIFICATES.length === 1;
+
   return (
     <section id="certificates" className="py-16 border-t border-white/5 print:hidden text-left relative z-10">
       <div className="max-w-4xl mx-auto space-y-12">
         
-        {/* Header section */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-          <div className="text-left space-y-4 max-w-xl">
-            <div className="space-y-2">
-              <span className="text-[10px] font-mono text-cyan-400 uppercase tracking-widest block font-bold">/ Proven Capabilities</span>
-              <h2 className="text-3xl sm:text-4xl font-semibold text-white tracking-tight flex items-center gap-3">
-                <Award className="h-8 w-8 text-cyan-400" />
-                Certificates & Recognition
-              </h2>
-            </div>
-            <p className="text-sm text-gray-400 font-sans leading-relaxed">
-              Official records of technical certifications and competitive hackathon achievements. Preview documents directly in the portfolio or download authentic PDFs.
-            </p>
+        {/* Header section - Always Left Aligned */}
+        <motion.div 
+          initial={{ opacity: 0, y: 12 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-50px" }}
+          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+          className="text-left space-y-4 max-w-4xl mx-auto"
+        >
+          <div className="space-y-2">
+            <span className="text-[10px] font-mono text-cyan-400 uppercase tracking-widest block font-bold">/ Proven Capabilities</span>
+            <h2 className="text-3xl sm:text-4xl font-semibold text-white tracking-tight flex items-center gap-3">
+              <Award className="h-8 w-8 text-cyan-400" />
+              <span>Certificates & Recognition</span>
+            </h2>
           </div>
-        </div>
+          <p className="text-sm text-gray-400 font-sans leading-relaxed max-w-xl">
+            Official records of technical certifications and competitive hackathon achievements. Preview documents directly in the portfolio or download authentic PDFs.
+          </p>
+        </motion.div>
 
         {/* Reusable Certificate List Grid */}
         {CERTIFICATES.length === 0 ? (
           <div className="text-center py-20 bg-white/[0.02] border border-white/5 rounded-3xl">
             <p className="text-gray-500 text-sm font-sans">No certificates added yet.</p>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            {CERTIFICATES.map((cert, index) => (
+        ) : isSingle ? (
+          <div className="flex justify-center max-w-4xl mx-auto w-full">
+            <div className="w-full max-w-2xl flex">
               <CertificateCard 
-                key={index} 
-                certificate={cert} 
-                onPreview={() => onPreview(cert)} 
+                certificate={CERTIFICATES[0]} 
+                onPreview={() => onPreview(CERTIFICATES[0])} 
               />
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-wrap justify-center gap-6 sm:gap-8 max-w-4xl mx-auto">
+            {CERTIFICATES.map((cert, index) => (
+              <div 
+                key={index} 
+                className="w-full sm:w-[calc(50%-1rem)] md:w-[calc(33.333%-1.35rem)] max-w-sm flex"
+              >
+                <CertificateCard 
+                  certificate={cert} 
+                  onPreview={() => onPreview(cert)} 
+                />
+              </div>
             ))}
           </div>
         )}
@@ -138,7 +157,7 @@ export function CertificateCard({ certificate, onPreview }: CertificateCardProps
       initial={{ opacity: 0, y: 15 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-50px" }}
-      transition={{ duration: 0.4 }}
+      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
       className="group rounded-2xl border border-white/5 bg-white/[0.015] hover:border-cyan-500/30 hover:bg-white/[0.025] transition-all duration-300 flex flex-col justify-between overflow-hidden shadow-lg"
     >
       <div className="space-y-4">

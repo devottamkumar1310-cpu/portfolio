@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { Sparkles, ArrowRight, CornerDownRight, CheckCircle2 } from "lucide-react";
+import { Sparkles, CornerDownRight } from "lucide-react";
 import { PROJECTS } from "../data";
 
 export default function CurrentlyBuilding() {
@@ -21,19 +21,31 @@ export default function CurrentlyBuilding() {
     <section className="py-12 border-t border-white/5 text-left">
       <div className="max-w-4xl mx-auto">
         {/* Title */}
-        <div className="space-y-1 mb-6">
+        <motion.div 
+          initial={{ opacity: 0, y: 12 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-50px" }}
+          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+          className="space-y-1 mb-6"
+        >
           <span className="text-[10px] font-mono text-cyan-400 uppercase tracking-widest block font-bold">
             / Active Engineering
           </span>
           <h2 className="text-2xl sm:text-3xl font-semibold text-white tracking-tight">
             Currently Building
           </h2>
-        </div>
+        </motion.div>
 
         {/* Premium bento-style card showcasing the active build */}
-        <div className="relative p-6 sm:p-8 rounded-2xl bg-gradient-to-br from-white/[0.015] via-transparent to-transparent border border-white/5 hover:border-white/10 transition-colors duration-300 overflow-hidden">
+        <motion.div 
+          initial={{ opacity: 0, y: 15 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-50px" }}
+          transition={{ duration: 0.6, delay: 0.05, ease: [0.16, 1, 0.3, 1] }}
+          className="relative p-6 sm:p-8 rounded-2xl bg-gradient-to-br from-white/[0.015] via-transparent to-transparent border border-white/5 hover:border-white/10 transition-colors duration-300 overflow-hidden"
+        >
           {/* Subtle decorative atmosphere */}
-          <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-500/5 rounded-full blur-[60px] pointer-events-none -y-5" />
+          <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-500/5 rounded-full blur-[60px] pointer-events-none -z-10" />
 
           <div className="relative flex flex-col md:flex-row md:items-start justify-between gap-6">
             
@@ -92,7 +104,7 @@ export default function CurrentlyBuilding() {
             </div>
 
           </div>
-        </div>
+        </motion.div>
       </div>
     </section>
   );

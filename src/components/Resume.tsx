@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { motion } from "motion/react";
 import { 
   Mail, 
   Github, 
@@ -77,7 +78,13 @@ export default function Resume() {
       <div className="max-w-3xl mx-auto space-y-10">
         
         {/* Page header (hidden during printing) */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-white/5 pb-6 print:hidden">
+        <motion.div 
+          initial={{ opacity: 0, y: 15, filter: "blur(4px)" }}
+          whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+          viewport={{ once: true, margin: "-50px" }}
+          transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
+          className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-white/5 pb-6 print:hidden"
+        >
           <div className="space-y-1">
             <span className="text-[10px] font-mono text-cyan-400 uppercase tracking-widest block font-bold">/ Profile</span>
             <h2 className="text-2xl sm:text-3xl font-semibold text-white tracking-tight">Professional Resume</h2>
@@ -110,10 +117,16 @@ export default function Resume() {
               <span>Print / PDF</span>
             </button>
           </div>
-        </div>
+        </motion.div>
 
         {/* EXECUTIVE CANVAS (Screen/Print Optimizations) */}
-        <div className="space-y-10 print:bg-white print:text-black print:p-0 print:shadow-none print:block">
+        <motion.div 
+          initial={{ opacity: 0, y: 20, filter: "blur(4px)" }}
+          whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+          viewport={{ once: true, margin: "-50px" }}
+          transition={{ duration: 0.7, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+          className="space-y-10 print:bg-white print:text-black print:p-0 print:shadow-none print:block"
+        >
           
           {/* ========================================== */}
           {/* 1. HERO SECTION */}
@@ -469,7 +482,7 @@ export default function Resume() {
             </div>
           </div>
 
-        </div>
+        </motion.div>
 
       </div>
     </section>

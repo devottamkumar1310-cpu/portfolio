@@ -1,6 +1,7 @@
 import { useState, FormEvent } from "react";
 import { Mail, Github, Linkedin, Send, CheckCircle2, Loader2 } from "lucide-react";
 import { BIO_SUMMARY } from "../data";
+import { motion } from "motion/react";
 
 export default function Contact() {
   const [formState, setFormState] = useState({ name: "", company: "", email: "", message: "" });
@@ -25,7 +26,13 @@ export default function Contact() {
       <div className="max-w-4xl mx-auto space-y-8">
         
         {/* Header headings */}
-        <div className="space-y-2">
+        <motion.div 
+          initial={{ opacity: 0, y: 12 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-50px" }}
+          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+          className="space-y-2"
+        >
           <span className="text-[10px] font-mono text-cyan-400 uppercase tracking-widest block font-bold">/ Communication</span>
           <h2 className="text-2xl sm:text-3xl font-semibold text-white tracking-tight">
             Get In Touch
@@ -33,13 +40,19 @@ export default function Contact() {
           <p className="text-xs text-gray-400 max-w-xl font-sans leading-relaxed">
             I am always open to discussing backend engineering opportunities, academic projects, or internships.
           </p>
-        </div>
+        </motion.div>
 
         {/* Contact Grid blocks */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-stretch">
           
           {/* Direct channels left block */}
-          <div className="md:col-span-5 p-6 rounded-2xl bg-white/[0.012] border border-white/5 flex flex-col justify-between space-y-6">
+          <motion.div 
+            initial={{ opacity: 0, x: -12 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true, margin: "-50px" }}
+            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+            className="md:col-span-5 p-6 rounded-2xl liquid-glass-contact flex flex-col justify-between space-y-6"
+          >
             <div className="space-y-4">
               <h3 className="text-sm font-semibold text-white font-sans text-left">Direct Channels</h3>
               <p className="text-xs text-gray-400 leading-relaxed font-sans text-left">
@@ -49,7 +62,7 @@ export default function Contact() {
               {/* Linked items */}
               <div className="space-y-2 text-left">
                 
-                <div className="flex items-center space-x-3 p-3 rounded-xl bg-white/[0.01] border border-white/5 text-xs">
+                <div className="flex items-center space-x-3 p-3 rounded-xl bg-white/[0.01] border border-white/5 text-xs liquid-glass-contact-item">
                   <Mail className="h-4.5 w-4.5 text-cyan-400 shrink-0" />
                   <div className="truncate">
                     <span className="text-[9px] font-mono text-gray-500 uppercase block font-bold leading-normal">Email Address</span>
@@ -57,21 +70,21 @@ export default function Contact() {
                   </div>
                 </div>
 
-                <div className="flex items-center space-x-3 p-3 rounded-xl bg-white/[0.01] border border-white/5 text-xs">
-                  <Github className="h-4.5 w-4.5 text-purple-400 shrink-0" />
+                <div className="flex items-center space-x-3 p-3 rounded-xl bg-white/[0.01] border border-white/5 text-xs liquid-glass-contact-item">
+                  <Github className="h-4.5 w-4.5 text-blue-400 shrink-0" />
                   <div className="truncate">
                     <span className="text-[9px] font-mono text-gray-500 uppercase block font-bold leading-normal">GitHub Profile</span>
-                    <a href={BIO_SUMMARY.github} target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-purple-400 transition-colors truncate block">
+                    <a href={BIO_SUMMARY.github} target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-blue-400 transition-colors truncate block">
                       {BIO_SUMMARY.github.replace("https://", "")}
                     </a>
                   </div>
                 </div>
 
-                <div className="flex items-center space-x-3 p-3 rounded-xl bg-white/[0.01] border border-white/5 text-xs">
-                  <Linkedin className="h-4.5 w-4.5 text-blue-400 shrink-0" />
+                <div className="flex items-center space-x-3 p-3 rounded-xl bg-white/[0.01] border border-white/5 text-xs liquid-glass-contact-item">
+                  <Linkedin className="h-4.5 w-4.5 text-cyan-400 shrink-0" />
                   <div className="truncate">
                     <span className="text-[9px] font-mono text-gray-500 uppercase block font-bold leading-normal">LinkedIn Network</span>
-                    <a href={BIO_SUMMARY.linkedin} target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-blue-400 transition-colors truncate block">
+                    <a href={BIO_SUMMARY.linkedin} target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-cyan-400 transition-colors truncate block">
                       {BIO_SUMMARY.linkedin.replace("https://", "").replace("www.", "")}
                     </a>
                   </div>
@@ -79,15 +92,16 @@ export default function Contact() {
 
               </div>
             </div>
+          </motion.div>
 
-            <div className="border-t border-white/5 pt-4 text-[10.5px] text-gray-500 font-mono text-left leading-relaxed">
-              <span className="text-[9px] text-gray-600 block uppercase font-bold mb-1">Academic Status</span>
-              IIT Patna Computer Science student actively developing production backend code patterns.
-            </div>
-          </div>
-
-          {/* Contact Form right block */}
-          <div className="md:col-span-7 p-6 rounded-2xl bg-white/[0.01] border border-white/5 shadow-2xl flex flex-col justify-center">
+          {/* Form right block */}
+          <motion.div 
+            initial={{ opacity: 0, x: 12 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true, margin: "-50px" }}
+            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+            className="md:col-span-7 p-6 rounded-2xl liquid-glass-contact flex flex-col justify-center"
+          >
             {isSubmitted ? (
                <div className="flex flex-col items-center justify-center py-10 text-center space-y-4">
                 <div className="h-10 w-10 rounded-full bg-emerald-950/20 border border-emerald-500/15 flex items-center justify-center">
@@ -101,7 +115,7 @@ export default function Contact() {
                 </div>
                 <button
                   onClick={() => setIsSubmitted(false)}
-                  className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 text-xs font-semibold text-cyan-400 transition-colors cursor-pointer"
+                  className="px-4 py-2 liquid-glass-btn rounded-xl text-xs font-semibold text-cyan-400 cursor-pointer"
                 >
                   Send Another Message
                 </button>
@@ -119,7 +133,7 @@ export default function Contact() {
                       value={formState.name}
                       onChange={(e) => setFormState({ ...formState, name: e.target.value })}
                       placeholder="Rachel Green"
-                      className="w-full bg-[#050505] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-gray-200 placeholder-zinc-700 focus:outline-none focus:border-cyan-500 transition-colors"
+                      className="w-full bg-[#050505] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-gray-205 placeholder-zinc-700 focus:outline-none focus:border-cyan-500/80 focus:shadow-[0_0_15px_-3px_rgba(6,182,212,0.35)] focus:ring-1 focus:ring-cyan-500/20 transition-all duration-300"
                     />
                   </div>
                   
@@ -130,7 +144,7 @@ export default function Contact() {
                       value={formState.company}
                       onChange={(e) => setFormState({ ...formState, company: e.target.value })}
                       placeholder="e.g. Acme Corp"
-                      className="w-full bg-[#050505] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-gray-200 placeholder-zinc-700 focus:outline-none focus:border-cyan-500 transition-colors"
+                      className="w-full bg-[#050505] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-gray-205 placeholder-zinc-700 focus:outline-none focus:border-cyan-500/80 focus:shadow-[0_0_15px_-3px_rgba(6,182,212,0.35)] focus:ring-1 focus:ring-cyan-500/20 transition-all duration-300"
                     />
                   </div>
                 </div>
@@ -143,7 +157,7 @@ export default function Contact() {
                     value={formState.email}
                     onChange={(e) => setFormState({ ...formState, email: e.target.value })}
                     placeholder="rachel@company.com"
-                    className="w-full bg-[#050505] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-gray-200 placeholder-zinc-700 focus:outline-none focus:border-cyan-500 transition-colors"
+                    className="w-full bg-[#050505] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-gray-205 placeholder-zinc-700 focus:outline-none focus:border-cyan-500/80 focus:shadow-[0_0_15px_-3px_rgba(6,182,212,0.35)] focus:ring-1 focus:ring-cyan-500/20 transition-all duration-300"
                   />
                 </div>
 
@@ -155,23 +169,23 @@ export default function Contact() {
                     value={formState.message}
                     onChange={(e) => setFormState({ ...formState, message: e.target.value })}
                     placeholder="Describe your project, question, or opportunity..."
-                    className="w-full bg-[#050505] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-gray-200 placeholder-zinc-700 focus:outline-none focus:border-cyan-500 transition-colors h-28 leading-relaxed resize-none"
+                    className="w-full bg-[#050505] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-gray-205 placeholder-zinc-700 focus:outline-none focus:border-cyan-500/80 focus:shadow-[0_0_15px_-3px_rgba(6,182,212,0.35)] focus:ring-1 focus:ring-cyan-500/20 transition-all duration-300 h-28 leading-relaxed resize-none"
                   />
                 </div>
 
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full h-11 bg-white hover:bg-gray-100 disabled:bg-gray-400 disabled:cursor-not-allowed text-black font-semibold text-xs tracking-wider rounded-xl transition-all duration-305 flex items-center justify-center space-x-2 cursor-pointer"
+                  className="w-full h-11 liquid-glass-btn-primary disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold text-xs tracking-wider rounded-xl flex items-center justify-center space-x-2 cursor-pointer"
                 >
                   {isSubmitting ? (
                     <>
-                      <Loader2 className="h-4 w-4 animate-spin shrink-0 text-black" />
+                      <Loader2 className="h-4 w-4 animate-spin shrink-0 text-white" />
                       <span>Sending Message...</span>
                     </>
                   ) : (
                     <>
-                      <Send className="h-3.5 w-3.5 shrink-0 text-black" />
+                      <Send className="h-3.5 w-3.5 shrink-0 text-white" />
                       <span>Send Message</span>
                     </>
                   )}
@@ -179,8 +193,8 @@ export default function Contact() {
 
               </form>
             )}
-          </div>
-
+          </motion.div>
+          
         </div>
 
       </div>
