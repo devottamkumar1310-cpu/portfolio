@@ -86,7 +86,7 @@ function CertificatesListView({ onPreview }: CertificatesListViewProps) {
 
   return (
     <section id="certificates" className="py-16 border-t border-white/5 print:hidden text-left relative z-10">
-      <div className="max-w-[1200px] mx-auto space-y-12">
+      <div className="max-w-4xl mx-auto space-y-12">
         
         {/* Header section - Always Left Aligned */}
         <motion.div 
@@ -249,7 +249,7 @@ interface CertificateDetailViewProps {
 
 function CertificateDetailView({ certificate, onPreview }: CertificateDetailViewProps) {
   return (
-    <div className="py-8 space-y-10 text-left relative z-10 max-w-[1200px] mx-auto w-full">
+    <div className="py-8 space-y-10 text-left relative z-10 max-w-4xl mx-auto w-full">
       
       {/* Back button */}
       <div>

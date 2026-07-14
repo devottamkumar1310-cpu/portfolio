@@ -61,7 +61,7 @@ function AppContent() {
         />
 
         {/* Navigation Stage Content Container */}
-        <main className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 pb-16 print:p-0 print:max-w-none">
+        <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 print:p-0 print:max-w-none">
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname}

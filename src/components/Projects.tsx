@@ -88,7 +88,7 @@ function ShowcaseGrid() {
 
   return (
     <section id="projects" className="py-12 border-t border-white/5 text-left relative z-10">
-      <div className="max-w-[1200px] mx-auto space-y-12">
+      <div className="max-w-4xl mx-auto space-y-12">
         
         {/* Section Header */}
         <motion.div 

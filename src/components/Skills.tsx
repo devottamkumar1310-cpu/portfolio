@@ -32,7 +32,7 @@ export default function Skills() {
 
   return (
     <section id="skills" className="py-12 border-t border-white/5 print:hidden">
-      <div className="max-w-[1200px] mx-auto space-y-8">
+      <div className="max-w-4xl mx-auto space-y-8">
         
         {/* Section Heading */}
         <motion.div 
